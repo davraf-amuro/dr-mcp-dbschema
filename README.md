@@ -115,10 +115,10 @@ Aggiungi la sezione `Ddl` all'`appsettings.json` del progetto che usa il tool:
 Clona la repo nella cartella `tools/` del tuo progetto:
 
 ```bash
-git clone https://git.uniot.eu/voisoft/mcp/mcp-db-schema.git tools/mcp-db-schema
+git clone https://github.com/davraf-amuro/dr-mcp-dbschema.git tools/dr-mcp-dbschema
 ```
 
-Aggiungi `tools/mcp-db-schema/` al `.gitignore` del progetto, poi aggiungi al file `.mcp.json` nella root:
+Aggiungi `tools/dr-mcp-dbschema/` al `.gitignore` del progetto, poi aggiungi al file `.mcp.json` nella root:
 
 ```json
 {
@@ -126,7 +126,7 @@ Aggiungi `tools/mcp-db-schema/` al `.gitignore` del progetto, poi aggiungi al fi
     "db-schema": {
       "type": "stdio",
       "command": "dotnet",
-      "args": ["run", "--project", "tools/mcp-db-schema/mcp-db-schema.csproj"]
+      "args": ["run", "--project", "tools/dr-mcp-dbschema/dr-mcp-dbschema.csproj"]
     }
   }
 }
@@ -182,10 +182,66 @@ PreviewAlter → tableName: "dbo.Utenti", sql: "ALTER TABLE dbo.Utenti ADD Email
 ExecuteAlter → confirmationToken: "<token da PreviewAlter>"
 ```
 
+## Test di integrazione
+
+Il progetto include una suite di integration test che verifica il ciclo completo dei tool MCP su un database SQL Server reale.
+
+### Struttura
+
+```
+tests/DrMcpDbSchema.IntegrationTests/
+  McpEnvironmentFixture.cs   ← fixture condivisa: container + seed + client MCP
+  FullCycleTests.cs          ← test sequenziale a 12 step
+```
+
+### Come funziona
+
+La `McpEnvironmentFixture` esegue automaticamente questi passi prima dei test:
+
+1. Avvia un container SQL Server via **Testcontainers** (richiede Docker attivo)
+2. Crea il database `TEST` con schema seed: tabella `Customers` + vista `ActiveCustomers`
+3. Scrive un `appsettings.json` temporaneo con `AllowCreate: true` e `AllowAlter: true`
+4. Avvia il server MCP come subprocess (`dotnet run`) e connette il client MCP
+
+### Scenario coperto da `FullCycleTests`
+
+| Step | Tool | Verifica |
+|------|------|----------|
+| 1 | `ListConnections` | La connessione `(override)` è elencata e attiva |
+| 2 | `UseConnection` | Selezione riuscita |
+| 3 | `ListViews` | Tabella `Customers` e vista `ActiveCustomers` presenti |
+| 4 | `GetViewDefinition` (vista) | Restituisce SQL `SELECT` |
+| 5 | `GetViewDefinition` (tabella) | Risposta descrive l'oggetto come tabella |
+| 6 | `GetViewColumns` | Colonne `Id`, `Name`, `Email` presenti |
+| 7 | `PreviewCreate` | Token generato, `Orders` citato nell'output |
+| 8 | `ExecuteCreate` | `[OK]` nella risposta |
+| 9 | `ListViews` | `Orders` presente dopo la CREATE |
+| 10 | `PreviewAlter` | Token generato, `Orders` citato |
+| 11 | `ExecuteAlter` | `[OK]` nella risposta |
+| 12 | `GetViewColumns` | Colonna `Note nvarchar` presente dopo l'ALTER |
+
+### Requisiti per i test
+
+| Requisito | Dettaglio |
+|-----------|-----------|
+| Docker Desktop | Necessario per Testcontainers (avvia SQL Server automaticamente) |
+| .NET 10 SDK | Build del server MCP dal subprocess |
+| Accesso a internet (prima esecuzione) | Pull immagine `mcr.microsoft.com/mssql/server` |
+
+### Eseguire i test
+
+```bash
+dotnet test tests/DrMcpDbSchema.IntegrationTests/
+```
+
+> I test sono a esecuzione lenta (30–120 secondi) perché avviano un container Docker e compilano il server MCP. Non usare timeout brevi.
+
+---
+
 ## Aggiornamento
 
 ```bash
-cd tools/mcp-db-schema
+cd tools/dr-mcp-dbschema
 git pull origin main
 ```
 
@@ -196,4 +252,4 @@ git pull origin main
 
 ---
 
-*Last update: 2026-03-27 — mcp-db-schema v2.0*
+*Last update: 2026-03-27 — dr-mcp-dbschema v2.1*
