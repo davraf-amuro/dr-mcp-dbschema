@@ -1,4 +1,4 @@
-# mcp-db-schema
+# dr-mcp-dbschema
 
 Server MCP per l'ispezione e la modifica dello schema di un database SQL Server. Permette a Claude Code di leggere la struttura delle tabelle e viste, e di eseguire operazioni DDL (CREATE TABLE, ALTER TABLE) con un flusso di conferma esplicita a due fasi.
 
@@ -135,6 +135,26 @@ Aggiungi `tools/dr-mcp-dbschema/` al `.gitignore` del progetto.
 
 ### Configurazione `.mcp.json`
 
+`.mcp.json` contiene il percorso dell'exe locale, che varia da macchina a macchina: **non va committato**. Si commette invece `.mcp.example.json` come riferimento.
+
+Aggiungi al `.gitignore` del progetto:
+```
+.mcp.json
+```
+
+Crea `.mcp.example.json` (committato, con placeholder):
+```json
+{
+  "mcpServers": {
+    "db-schema": {
+      "type": "stdio",
+      "command": "tools/dr-mcp-dbschema/dr-mcp-dbschema.exe"
+    }
+  }
+}
+```
+
+Crea `.mcp.json` locale (non committato, stesso contenuto senza placeholder in questo caso):
 ```json
 {
   "mcpServers": {
@@ -150,13 +170,13 @@ Riavvia Claude Code — il server si avvia automaticamente senza compilazione.
 
 ### Aggiornare il binario
 
-Ri-esegui `setup.ps1` con la nuova versione:
+Ri-esegui `setup.ps1` dalla root del tuo progetto. Per una versione specifica:
 
 ```powershell
-& .\tools\dr-mcp-dbschema\setup.ps1 -Version v2.0.0
+irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1 | iex -Args "-Version v2.0.0"
 ```
 
-oppure scarica sempre l'ultima:
+Per scaricare sempre l'ultima disponibile:
 
 ```powershell
 irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1 | iex
@@ -209,6 +229,49 @@ PreviewAlter → tableName: "dbo.Utenti", sql: "ALTER TABLE dbo.Utenti ADD Email
 ```
 ExecuteAlter → confirmationToken: "<token da PreviewAlter>"
 ```
+
+## Creare una release
+
+Il workflow `.github/workflows/release.yml` si attiva automaticamente al push di un tag nel formato `v*.*.*`.
+
+### Passi per pubblicare una nuova versione
+
+```bash
+# 1. Assicurati che main sia aggiornato e i test passino
+git checkout main
+git pull
+
+# 2. Crea il tag di versione
+git tag v1.0.0
+
+# 3. Fai il push del tag — questo avvia il workflow
+git push origin v1.0.0
+```
+
+Il workflow esegue in sequenza:
+
+| Passo | Operazione |
+|-------|------------|
+| Restore + Build | Compila il progetto in Release |
+| Test | Esegue i test di integrazione (richiede Docker su GitHub Actions) |
+| Publish win-x64 | Binario single-file self-contained per Windows |
+| Publish linux-x64 | Binario single-file self-contained per Linux |
+| Create archives | `dr-mcp-dbschema-win-x64.zip` / `dr-mcp-dbschema-linux-x64.tar.gz` |
+| Create GitHub Release | Pubblica gli archivi allegati alla release con note generate automaticamente |
+
+La release è visibile in `https://github.com/davraf-amuro/dr-mcp-dbschema/releases`.
+
+### Convenzione versioning
+
+Usa [Semantic Versioning](https://semver.org/): `vMAGGIORE.MINORE.PATCH`
+
+| Tipo di cambiamento | Cosa incrementare |
+|---------------------|-------------------|
+| Nuovo tool o breaking change | MAGGIORE |
+| Nuova funzionalità compatibile | MINORE |
+| Bug fix, aggiornamento dipendenze | PATCH |
+
+---
 
 ## Test di integrazione
 
@@ -266,18 +329,16 @@ dotnet test tests/DrMcpDbSchema.IntegrationTests/
 
 ---
 
-## Aggiornamento
-
-```bash
-cd tools/dr-mcp-dbschema
-git pull origin main
-```
-
 ## Requisiti
 
-- .NET 10 SDK
-- Accesso di rete al database SQL Server
+| Requisito | Per chi |
+|-----------|---------|
+| .NET 10 SDK | Solo per sviluppare o eseguire i test |
+| Docker Desktop | Solo per eseguire i test di integrazione |
+| Accesso di rete al database SQL Server | Necessario a runtime in ogni ambiente |
+
+> I progetti che usano il binario self-contained non richiedono .NET SDK né runtime installato.
 
 ---
 
-*Last update: 2026-03-27 — dr-mcp-dbschema v2.2*
+*Last update: 2026-03-27 — dr-mcp-dbschema v2.3*
