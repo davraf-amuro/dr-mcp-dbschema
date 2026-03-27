@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using ModelContextProtocol.Client;
 using Testcontainers.MsSql;
+using Xunit;
 
 namespace DrMcpDbSchema.IntegrationTests;
 
@@ -17,7 +18,7 @@ public sealed class McpEnvironmentFixture : IAsyncLifetime
     private MsSqlContainer _container = null!;
     private string _tempSettingsDir = null!;
 
-    public IMcpClient Client { get; private set; } = null!;
+    public McpClient Client { get; private set; } = null!;
 
     public async Task InitializeAsync()
     {
@@ -56,25 +57,25 @@ public sealed class McpEnvironmentFixture : IAsyncLifetime
         {
             Command = "dotnet",
             Arguments = ["run", "--project", csproj, "--configuration", configuration],
-            EnvironmentVariables = new Dictionary<string, string>
+            EnvironmentVariables = new Dictionary<string, string?>
             {
                 ["DB_CONNECTION_STRING"] = testCs,
                 ["DB_SCHEMA_ROOT"] = _tempSettingsDir
             }
         });
 
-        Client = await McpClientFactory.CreateAsync(transport);
+        Client = await McpClient.CreateAsync(transport);
     }
 
     public async Task DisposeAsync()
     {
-        if (Client is IAsyncDisposable d)
-            await d.DisposeAsync();
-
+        await Client.DisposeAsync();
         await _container.DisposeAsync();
 
         if (Directory.Exists(_tempSettingsDir))
+        {
             Directory.Delete(_tempSettingsDir, recursive: true);
+        }
     }
 
     // ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 using ModelContextProtocol.Protocol;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace DrMcpDbSchema.IntegrationTests;
@@ -126,12 +127,12 @@ public class FullCycleTests(McpEnvironmentFixture fx, ITestOutputHelper output)
     // ---------------------------------------------------------------------------
 
     private async Task<string> CallAsync(string tool,
-        Dictionary<string, object?>? args = null,
+        IReadOnlyDictionary<string, object?>? args = null,
         CancellationToken ct = default)
     {
-        var result = await fx.Client.CallToolAsync(tool, args, ct);
+        var result = await fx.Client.CallToolAsync(tool, args, cancellationToken: ct);
         return result.Content
-            .OfType<TextContent>()
+            .OfType<TextContentBlock>()
             .FirstOrDefault()?.Text ?? string.Empty;
     }
 
