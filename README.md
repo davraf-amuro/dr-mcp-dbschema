@@ -112,27 +112,55 @@ Aggiungi la sezione `Ddl` all'`appsettings.json` del progetto che usa il tool:
 
 ## Aggiungere al progetto
 
-Clona la repo nella cartella `tools/` del tuo progetto:
+### Installazione via script (consigliato)
 
-```bash
-git clone https://github.com/davraf-amuro/dr-mcp-dbschema.git tools/dr-mcp-dbschema
+Esegui una volta nella root del progetto consumatore:
+
+```powershell
+irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1 | iex
 ```
 
-Aggiungi `tools/dr-mcp-dbschema/` al `.gitignore` del progetto, poi aggiungi al file `.mcp.json` nella root:
+Lo script:
+1. Scarica il binario `win-x64` dall'ultima GitHub Release
+2. Lo estrae in `tools/dr-mcp-dbschema/`
+3. Mostra lo snippet `.mcp.json` da incollare
+
+Per una versione specifica:
+
+```powershell
+& .\setup.ps1 -Version v1.2.0
+```
+
+Aggiungi `tools/dr-mcp-dbschema/` al `.gitignore` del progetto.
+
+### Configurazione `.mcp.json`
 
 ```json
 {
   "mcpServers": {
     "db-schema": {
       "type": "stdio",
-      "command": "dotnet",
-      "args": ["run", "--project", "tools/dr-mcp-dbschema/dr-mcp-dbschema.csproj"]
+      "command": "tools/dr-mcp-dbschema/dr-mcp-dbschema.exe"
     }
   }
 }
 ```
 
-Riavvia Claude Code — il server viene compilato e avviato automaticamente.
+Riavvia Claude Code — il server si avvia automaticamente senza compilazione.
+
+### Aggiornare il binario
+
+Ri-esegui `setup.ps1` con la nuova versione:
+
+```powershell
+& .\tools\dr-mcp-dbschema\setup.ps1 -Version v2.0.0
+```
+
+oppure scarica sempre l'ultima:
+
+```powershell
+irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1 | iex
+```
 
 ## Esempi d'uso
 
@@ -252,4 +280,4 @@ git pull origin main
 
 ---
 
-*Last update: 2026-03-27 — dr-mcp-dbschema v2.1*
+*Last update: 2026-03-27 — dr-mcp-dbschema v2.2*
