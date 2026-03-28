@@ -26,8 +26,8 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      - name: Test
-        run: dotnet test --configuration Release --no-build --verbosity normal
+      - name: Test (unit only — integration tests richiedono Docker e girano in CI)
+        run: dotnet test --configuration Release --no-build --verbosity normal --filter "Category!=Integration"
 
       - name: Publish linux-x64
         run: >
@@ -51,12 +51,15 @@ jobs:
           -p:DebugSymbols=false
           --output publish/win-x64
 
-      - name: Create archives
+      - name: Create archives and checksums
         run: |
           cd publish/win-x64
           zip ../../dr-mcp-dbschema-win-x64.zip dr-mcp-dbschema.exe
           cd ../linux-x64
           tar czf ../../dr-mcp-dbschema-linux-x64.tar.gz dr-mcp-dbschema
+          cd ../..
+          sha256sum dr-mcp-dbschema-win-x64.zip dr-mcp-dbschema-linux-x64.tar.gz > checksums.sha256
+          cat checksums.sha256
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -64,4 +67,5 @@ jobs:
           files: |
             dr-mcp-dbschema-win-x64.zip
             dr-mcp-dbschema-linux-x64.tar.gz
+            checksums.sha256
           generate_release_notes: true
