@@ -17,11 +17,23 @@ var searchRoot = Environment.GetEnvironmentVariable("DB_SCHEMA_ROOT")
     : Directory.Exists(Path.Combine(workDir, "src")) ? Path.Combine(workDir, "src")
     : workDir;
 
-// Scansione ricorsiva di tutti gli appsettings*.json sotto searchRoot, esclusi bin/ e obj/
+// Scansione ricorsiva di tutti gli appsettings*.json sotto searchRoot, esclusi bin/ e obj/.
+// Ordine di lettura (last-wins, priorità crescente):
+//   1 — appsettings.json e varianti base  (appsettings*.json senza punto interno)
+//   2 — appsettings.{env}.json            (appsettings.Development.json, ecc.)
+//   3 — appsettings.local.json            (override locale, non committato — vince su tutto)
 var appsettingsFiles = Directory.GetFiles(searchRoot, "appsettings*.json", SearchOption.AllDirectories)
     .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}")
              && !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}"))
-    .OrderBy(f => f)
+    .OrderBy(f =>
+    {
+        var name = Path.GetFileName(f);
+        if (name.Equals("appsettings.local.json", StringComparison.OrdinalIgnoreCase)) return 3;
+        if (System.Text.RegularExpressions.Regex.IsMatch(name, @"^appsettings\..+\.json$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase)) return 2;
+        return 1;
+    })
+    .ThenBy(f => f)
     .ToList();
 
 var available = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

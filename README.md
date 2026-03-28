@@ -85,7 +85,15 @@ Nessuna variabile d'ambiente necessaria. All'avvio il tool determina la radice d
 2. `src/` relativa alla directory corrente — se la cartella esiste
 3. Directory corrente — fallback
 
-Da quella radice scansiona ricorsivamente tutti gli `appsettings*.json` (escludendo `bin/` e `obj/`).
+Da quella radice scansiona ricorsivamente tutti gli `appsettings*.json` (escludendo `bin/` e `obj/`) con questa priorità (l'ultimo letto sovrascrive):
+
+| Priorità | Pattern | Esempi |
+|----------|---------|--------|
+| 1 — base | `appsettings*.json` senza punto interno | `appsettings.json` |
+| 2 — ambiente | `appsettings.{env}.json` | `appsettings.Development.json` |
+| 3 — locale (**vince su tutto**) | `appsettings.local.json` | `appsettings.local.json` |
+
+`appsettings.local.json` è già escluso dal `.gitignore` del progetto ed è il posto giusto per connection string locali che non devono essere committate.
 
 - Se trova **una sola** connection string, la seleziona automaticamente
 - Se ne trova **più di una**, richiede di scegliere tramite `UseConnection`
