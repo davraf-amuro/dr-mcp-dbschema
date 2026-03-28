@@ -19,22 +19,22 @@ Permette all'assistente IA di leggere la struttura di tabelle e viste ed eseguir
 
 | Tool | Parametri | Descrizione |
 |------|-----------|-------------|
-| `ListConnections` | -- | Elenca le connection string trovate negli `appsettings*.json` del progetto |
-| `UseConnection` | `name` | Seleziona quale connection string usare |
-| `ListViews` | -- | Elenca tutte le tabelle e le viste del database |
-| `GetViewDefinition` | `viewName` | Restituisce il codice SQL (`CREATE VIEW`) di una vista |
-| `GetViewColumns` | `viewName` | Restituisce le colonne di una tabella o vista (nome, tipo, nullable) |
+| `list_connections` | -- | Elenca le connection string trovate negli `appsettings*.json` del progetto |
+| `use_connection` | `name` | Seleziona quale connection string usare |
+| `list_views` | -- | Elenca tutte le tabelle e le viste del database |
+| `get_view_definition` | `viewName` | Restituisce il codice SQL (`CREATE VIEW`) di una vista |
+| `get_view_columns` | `viewName` | Restituisce le colonne di una tabella o vista (nome, tipo, nullable) |
 
 ### Operazioni DDL (richiedono abilitazione esplicita)
 
 | Tool | Parametri | Descrizione |
 |------|-----------|-------------|
-| `PreviewCreate` | `sql` | Analizza uno statement CREATE TABLE e genera un token di conferma. Non esegue nulla. |
-| `ExecuteCreate` | `confirmationToken` | Esegue la CREATE TABLE associata al token. Il token è monouso e scade in 60 secondi. |
-| `PreviewAlter` | `tableName`, `sql` | Mostra lo schema corrente, analizza il rischio e genera un token. Scrive uno script di audit in `schema-migrations/`. |
-| `ExecuteAlter` | `confirmationToken` | Esegue l'ALTER TABLE associata al token. Aggiorna il file di audit. |
-| `PreviewDrop` | `tableName` | Mostra lo schema corrente della tabella e genera un token di conferma per eliminarla. Non esegue nulla. |
-| `ExecuteDrop` | `confirmationToken` | Esegue la DROP TABLE associata al token. Il token è monouso e scade in 60 secondi. |
+| `preview_create` | `sql` | Analizza uno statement CREATE TABLE e genera un token di conferma. Non esegue nulla. |
+| `execute_create` | `confirmationToken` | Esegue la CREATE TABLE associata al token. Il token è monouso e scade in 60 secondi. |
+| `preview_alter` | `tableName`, `sql` | Mostra lo schema corrente, analizza il rischio e genera un token. Scrive uno script di audit in `schema-migrations/`. |
+| `execute_alter` | `confirmationToken` | Esegue l'ALTER TABLE associata al token. Aggiorna il file di audit. |
+| `preview_drop` | `tableName` | Mostra lo schema corrente della tabella e genera un token di conferma per eliminarla. Non esegue nulla. |
+| `execute_drop` | `confirmationToken` | Esegue la DROP TABLE associata al token. Il token è monouso e scade in 60 secondi. |
 
 ## Modello di sicurezza DDL
 
@@ -98,9 +98,13 @@ Da quella radice scansiona ricorsivamente tutti gli `appsettings*.json` (esclude
 - Se trova **una sola** connection string, la seleziona automaticamente
 - Se ne trova **più di una**, richiede di scegliere tramite `UseConnection`
 
-Override esplicito della connection string:
+Override esplicito della connection string (due modalità, in ordine di priorità):
 
 ```powershell
+# 1 — argomento da riga di comando (priorità massima)
+dotnet run --project tools/dr-mcp-dbschema/dr-mcp-dbschema.csproj -- "Server=...;Database=...;..."
+
+# 2 — variabile d'ambiente
 $env:DB_CONNECTION_STRING = "Server=...;Database=...;..."
 dotnet run --project tools/dr-mcp-dbschema/dr-mcp-dbschema.csproj
 ```
@@ -228,17 +232,17 @@ Invoke-Expression "& { $(irm https://raw.githubusercontent.com/davraf-amuro/dr-m
 ### Ispezione schema
 
 ```
-ListConnections
-UseConnection -- name: "MioDb"
-ListViews
-GetViewDefinition -- viewName: "vw_Log106"
-GetViewColumns -- viewName: "dbo.Utenti"
+list_connections
+use_connection -- name: "MioDb"
+list_views
+get_view_definition -- viewName: "vw_Log106"
+get_view_columns -- viewName: "dbo.Utenti"
 ```
 
 ### CREATE TABLE
 
 ```
-PreviewCreate -- sql: "CREATE TABLE dbo.Test (Id INT PRIMARY KEY, Nome NVARCHAR(100) NOT NULL)"
+preview_create -- sql: "CREATE TABLE dbo.Test (Id INT PRIMARY KEY, Nome NVARCHAR(100) NOT NULL)"
 ```
 
 Output:
@@ -254,24 +258,24 @@ database    : MioDb
 token       : A3F9C12B4E7D
 scade tra   : 60 secondi
 ...
-!! Per procedere: ExecuteCreate("A3F9C12B4E7D")
+!! Per procedere: execute_create("A3F9C12B4E7D")
 ```
 
 ```
-ExecuteCreate -- confirmationToken: "A3F9C12B4E7D"
+execute_create -- confirmationToken: "A3F9C12B4E7D"
 ```
 
 ### ALTER TABLE
 
 ```
-PreviewAlter -- tableName: "dbo.Utenti", sql: "ALTER TABLE dbo.Utenti ADD Email NVARCHAR(200) NULL"
-ExecuteAlter -- confirmationToken: "<token da PreviewAlter>"
+preview_alter -- tableName: "dbo.Utenti", sql: "ALTER TABLE dbo.Utenti ADD Email NVARCHAR(200) NULL"
+execute_alter -- confirmationToken: "<token da preview_alter>"
 ```
 
 ### DROP TABLE
 
 ```
-PreviewDrop -- tableName: "dbo.Test"
+preview_drop -- tableName: "dbo.Test"
 ```
 
 Output:
@@ -295,11 +299,11 @@ pos | column | type | max_len | nullable
 ------------------------------------------------------------
 
 !! ATTENZIONE: questa operazione DISTRUGGE la tabella e tutti i suoi dati.
-!! Per procedere: ExecuteDrop("B7E2D45F9C1A")
+!! Per procedere: execute_drop("B7E2D45F9C1A")
 ```
 
 ```
-ExecuteDrop -- confirmationToken: "B7E2D45F9C1A"
+execute_drop -- confirmationToken: "B7E2D45F9C1A"
 ```
 
 ## Creare una release
@@ -372,18 +376,18 @@ Richiede Docker attivo. Crea un database SQL Server temporaneo in container, ese
 
 | Step | Tool | Verifica |
 |------|------|----------|
-| 1 | `ListConnections` | La connessione `(override)` è elencata e attiva |
-| 2 | `UseConnection` | Selezione riuscita |
-| 3 | `ListViews` | Tabella `Customers` e vista `ActiveCustomers` presenti |
-| 4 | `GetViewDefinition` (vista) | Restituisce SQL `SELECT` |
-| 5 | `GetViewDefinition` (tabella) | Risposta descrive l'oggetto come tabella |
-| 6 | `GetViewColumns` | Colonne `Id`, `Name`, `Email` presenti |
-| 7 | `PreviewCreate` | Token generato, `Orders` citato nell'output |
-| 8 | `ExecuteCreate` | `[OK]` nella risposta |
-| 9 | `ListViews` | `Orders` presente dopo la CREATE |
-| 10 | `PreviewAlter` | Token generato, `Orders` citato |
-| 11 | `ExecuteAlter` | `[OK]` nella risposta |
-| 12 | `GetViewColumns` | Colonna `Note nvarchar` presente dopo l'ALTER |
+| 1 | `list_connections` | La connessione `(override)` è elencata e attiva |
+| 2 | `use_connection` | Selezione riuscita |
+| 3 | `list_views` | Tabella `Customers` e vista `ActiveCustomers` presenti |
+| 4 | `get_view_definition` (vista) | Restituisce SQL `SELECT` |
+| 5 | `get_view_definition` (tabella) | Risposta descrive l'oggetto come tabella |
+| 6 | `get_view_columns` | Colonne `Id`, `Name`, `Email` presenti |
+| 7 | `preview_create` | Token generato, `Orders` citato nell'output |
+| 8 | `execute_create` | `[OK]` nella risposta |
+| 9 | `list_views` | `Orders` presente dopo la CREATE |
+| 10 | `preview_alter` | Token generato, `Orders` citato |
+| 11 | `execute_alter` | `[OK]` nella risposta |
+| 12 | `get_view_columns` | Colonna `Note nvarchar` presente dopo l'ALTER |
 
 #### Requisiti
 
@@ -495,4 +499,4 @@ dotnet test tests/DrMcpDbSchema.IntegrationTests/ --filter "Category!=LocalDB"
 
 ---
 
-*Last update: 2026-03-28 — dr-mcp-dbschema v2.6*
+*Last update: 2026-03-28 — dr-mcp-dbschema v2.7*
