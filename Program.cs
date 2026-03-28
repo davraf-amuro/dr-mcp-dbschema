@@ -47,6 +47,8 @@ foreach (var file in appsettingsFiles)
             ddlSettings.AllowCreate = allowCreate;
         if (bool.TryParse(ddlSection["AllowAlter"], out var allowAlter))
             ddlSettings.AllowAlter = allowAlter;
+        if (bool.TryParse(ddlSection["AllowDrop"], out var allowDrop))
+            ddlSettings.AllowDrop = allowDrop;
     }
 }
 
@@ -95,9 +97,10 @@ public class DdlSettings
 {
     public bool AllowCreate { get; set; } = false;
     public bool AllowAlter { get; set; } = false;
+    public bool AllowDrop { get; set; } = false;
 }
 
-public enum DdlKind { Create, Alter }
+public enum DdlKind { Create, Alter, Drop }
 
 public class PendingDdl
 {
@@ -475,6 +478,108 @@ public class DbSchemaTools(ConnectionState state, DdlSettings ddlSettings, DdlTo
             database  : {pending.ConnectionName}
             timestamp : {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC
             audit     : schema-migrations/ aggiornato
+            """;
+    }
+
+    // -------------------------------------------------------------------------
+    // DDL — DROP
+    // -------------------------------------------------------------------------
+
+    [McpServerTool, Description(
+        "Mostra lo schema corrente della tabella e genera un token di conferma per eliminarla. " +
+        "NON esegue nulla sul database. " +
+        "Richiede Ddl.AllowDrop: true in appsettings.json.")]
+    public async Task<string> PreviewDrop(
+        [Description("Nome della tabella da eliminare (senza schema, o nella forma schema.nome)")] string tableName,
+        CancellationToken ct = default)
+    {
+        if (!ddlSettings.AllowDrop)
+            return DdlDisabledMessage("DROP", "AllowDrop");
+
+        if (state.ActiveConnectionString is null)
+            return NoConnectionMessage();
+
+        var parts = tableName.Split('.', 2);
+        var schema = parts.Length == 2 ? parts[0] : "dbo";
+        var name = parts.Length == 2 ? parts[1] : parts[0];
+
+        await using var conn = new SqlConnection(state.ActiveConnectionString);
+        await conn.OpenAsync(ct);
+
+        var checkCmd = new SqlCommand(
+            "SELECT TABLE_TYPE FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = @schema AND TABLE_NAME = @name",
+            conn);
+        checkCmd.Parameters.AddWithValue("@schema", schema);
+        checkCmd.Parameters.AddWithValue("@name", name);
+        var tableType = await checkCmd.ExecuteScalarAsync(ct);
+
+        if (tableType is DBNull or null)
+            return $"La tabella '{tableName}' non esiste nel database.";
+
+        var currentSchema = await GetColumnsText(tableName, ct);
+        var sql = $"DROP TABLE [{schema}].[{name}]";
+
+        var token = tokenStore.Add(new PendingDdl
+        {
+            Sql = sql,
+            Kind = DdlKind.Drop,
+            TableName = tableName,
+            ConnectionName = state.ActiveName ?? "(override)",
+            ConnectionString = state.ActiveConnectionString,
+            ExpiresAt = DateTime.UtcNow.AddSeconds(60)
+        });
+
+        return $"""
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !!  ATTENZIONE — OPERAZIONE DDL — RICHIESTA CONFERMA     !!
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+            risk_level  : DANGER
+            operazione  : DROP TABLE
+            tabella     : {tableName}
+            database    : {state.ActiveName}
+            token       : {token}
+            scade tra   : 60 secondi
+
+            Schema che verra' ELIMINATO:
+            ------------------------------------------------------------
+            {currentSchema}
+            ------------------------------------------------------------
+
+            !! ATTENZIONE: questa operazione DISTRUGGE la tabella e tutti i suoi dati.
+            !! Per procedere: ExecuteDrop("{token}")
+            !! Per annullare: ignora questo messaggio (il token scadera').
+            """;
+    }
+
+    [McpServerTool, Description(
+        "Esegue la DROP TABLE associata al token generato da PreviewDrop. " +
+        "Il token e' monouso e scade in 60 secondi.")]
+    public async Task<string> ExecuteDrop(
+        [Description("Token restituito da PreviewDrop")] string confirmationToken,
+        CancellationToken ct = default)
+    {
+        if (!ddlSettings.AllowDrop)
+            return DdlDisabledMessage("DROP", "AllowDrop");
+
+        var pending = tokenStore.Consume(confirmationToken);
+        if (pending is null)
+            return "Token non valido o scaduto. Esegui nuovamente PreviewDrop per ottenere un nuovo token.";
+
+        if (pending.Kind != DdlKind.Drop)
+            return "Il token fornito non e' associato a una DROP. Usa ExecuteCreate o ExecuteAlter per le rispettive operazioni.";
+
+        await using var conn = new SqlConnection(pending.ConnectionString);
+        await conn.OpenAsync(ct);
+
+        await using var cmd = new SqlCommand(pending.Sql, conn);
+        await cmd.ExecuteNonQueryAsync(ct);
+
+        return $"""
+            [OK] DROP TABLE eseguita con successo.
+            tabella   : {pending.TableName ?? "(non rilevata)"}
+            database  : {pending.ConnectionName}
+            timestamp : {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC
             """;
     }
 

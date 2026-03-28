@@ -2,7 +2,7 @@
 
 Server MCP per l'ispezione e la modifica dello schema di un database SQL Server. Compatibile con qualsiasi client che implementa il protocollo MCP: Claude Code, Claude Desktop, VS Code con GitHub Copilot, Cursor e altri.
 
-Permette all'assistente IA di leggere la struttura di tabelle e viste ed eseguire operazioni DDL (CREATE TABLE, ALTER TABLE) con un flusso di conferma esplicita a due fasi.
+Permette all'assistente IA di leggere la struttura di tabelle e viste ed eseguire operazioni DDL (CREATE TABLE, ALTER TABLE, DROP TABLE) con un flusso di conferma esplicita a due fasi.
 
 ## Client supportati
 
@@ -30,22 +30,24 @@ Permette all'assistente IA di leggere la struttura di tabelle e viste ed eseguir
 | Tool | Parametri | Descrizione |
 |------|-----------|-------------|
 | `PreviewCreate` | `sql` | Analizza uno statement CREATE TABLE e genera un token di conferma. Non esegue nulla. |
-| `ExecuteCreate` | `confirmationToken` | Esegue la CREATE TABLE associata al token. Il token e monouso e scade in 60 secondi. |
+| `ExecuteCreate` | `confirmationToken` | Esegue la CREATE TABLE associata al token. Il token è monouso e scade in 60 secondi. |
 | `PreviewAlter` | `tableName`, `sql` | Mostra lo schema corrente, analizza il rischio e genera un token. Scrive uno script di audit in `schema-migrations/`. |
 | `ExecuteAlter` | `confirmationToken` | Esegue l'ALTER TABLE associata al token. Aggiorna il file di audit. |
+| `PreviewDrop` | `tableName` | Mostra lo schema corrente della tabella e genera un token di conferma per eliminarla. Non esegue nulla. |
+| `ExecuteDrop` | `confirmationToken` | Esegue la DROP TABLE associata al token. Il token è monouso e scade in 60 secondi. |
 
 ## Modello di sicurezza DDL
 
-Le operazioni DDL sono **disabilitate per default**. Devono essere abilitate esplicitamente per ambiente, separatamente per CREATE e ALTER, perche gli impatti sono diversi.
+Le operazioni DDL sono **disabilitate per default**. Ogni tipo di operazione si abilita separatamente perché gli impatti sono diversi.
 
-Il flusso obbligatorio e a due fasi:
+Il flusso obbligatorio è a due fasi:
 
 ```
-PreviewCreate / PreviewAlter  -->  conferma visiva + token
-ExecuteCreate / ExecuteAlter  -->  esecuzione solo con token valido
+Preview*  -->  conferma visiva + token (60 secondi TTL)
+Execute*  -->  esecuzione solo con token valido e non scaduto
 ```
 
-Il token e:
+Il token è:
 - **monouso**: consumato al primo `Execute*`, non riutilizzabile
 - **TTL 60 secondi**: scade automaticamente se non usato
 - **legato alla connessione attiva**: non trasferibile tra sessioni
@@ -56,8 +58,10 @@ Il token e:
 |---------------------|------------|--------|
 | `DROP COLUMN` | `DANGER` | I dati nella colonna vengono persi definitivamente |
 | `ALTER COLUMN` | `DANGER` | Possibile troncamento o perdita di dati esistenti |
-| `DROP CONSTRAINT` | `DANGER` | Impatto sull'integrita referenziale |
+| `DROP CONSTRAINT` | `DANGER` | Impatto sull'integrità referenziale |
 | `ADD ...` | `WARN` | Operazione additiva, nessun dato esistente modificato |
+
+`PreviewDrop` classifica sempre al livello `DANGER` e mostra lo schema completo della tabella prima di generare il token.
 
 ## Audit trail ALTER
 
@@ -75,16 +79,16 @@ Il file contiene: tabella, token, timestamp UTC, SQL proposto e stato finale (`P
 
 ### Connection string
 
-Nessuna variabile d'ambiente necessaria. All'avvio il tool determina la radice di scansione con questa priorita:
+Nessuna variabile d'ambiente necessaria. All'avvio il tool determina la radice di scansione con questa priorità:
 
-1. `DB_SCHEMA_ROOT` (env var) -- percorso esplicito
-2. `src/` relativa alla directory corrente -- se la cartella esiste
-3. Directory corrente -- fallback
+1. `DB_SCHEMA_ROOT` (env var) — percorso esplicito
+2. `src/` relativa alla directory corrente — se la cartella esiste
+3. Directory corrente — fallback
 
 Da quella radice scansiona ricorsivamente tutti gli `appsettings*.json` (escludendo `bin/` e `obj/`).
 
 - Se trova **una sola** connection string, la seleziona automaticamente
-- Se ne trova **piu di una**, richiede di scegliere tramite `UseConnection`
+- Se ne trova **più di una**, richiede di scegliere tramite `UseConnection`
 
 Override esplicito della connection string:
 
@@ -110,23 +114,25 @@ Aggiungi la sezione `Ddl` all'`appsettings.json` del progetto che usa il tool:
   },
   "Ddl": {
     "AllowCreate": false,
-    "AllowAlter": false
+    "AllowAlter": false,
+    "AllowDrop": false
   }
 }
 ```
 
 | Flag | Default | Quando abilitare |
 |------|---------|-----------------|
-| `AllowCreate` | `false` | Ambienti di sviluppo/staging dove e necessario creare tabelle |
+| `AllowCreate` | `false` | Ambienti di sviluppo/staging dove è necessario creare tabelle |
 | `AllowAlter` | `false` | Ambienti dove sono necessarie migrazioni strutturali |
+| `AllowDrop` | `false` | Ambienti di test o sviluppo dove è necessario eliminare tabelle |
 
-> **Non abilitare entrambi i flag in produzione** senza un processo di revisione esplicito. Ogni ALTER in produzione dovrebbe passare da un processo di migration formale (Flyway, EF Migrations, ecc.).
+> **Non abilitare i flag DDL in produzione** senza un processo di revisione esplicito. Ogni operazione strutturale in produzione dovrebbe passare da un processo di migration formale (Flyway, EF Migrations, ecc.).
 
 ## Installazione nel progetto
 
 ### Prerequisiti
 
-Nessun SDK .NET richiesto sul computer che usa il tool. Il binario e self-contained.
+Nessun SDK .NET richiesto sul computer che usa il tool. Il binario è self-contained.
 
 Serve solo accesso di rete al database SQL Server.
 
@@ -173,7 +179,7 @@ tools/dr-mcp-dbschema/
 .cursor/mcp.json
 ```
 
-Commetti invece i file `.example` come riferimento per il team. I file example sono gia presenti nel repository di dr-mcp-dbschema:
+Commetti invece i file `.example` come riferimento per il team. I file example sono già presenti nel repository di dr-mcp-dbschema:
 
 | File committato | Usato da |
 |-----------------|---------|
@@ -201,7 +207,7 @@ Claude Desktop usa un file di configurazione globale con percorso assoluto:
 
 ### Aggiornare il binario
 
-Ri-esegui lo stesso comando di installazione. Lo script rileva la versione gia presente e stampa `Aggiornamento: vX.Y.Z -> vA.B.C`.
+Ri-esegui lo stesso comando di installazione. Lo script rileva la versione già presente e stampa `Aggiornamento: vX.Y.Z -> vA.B.C`.
 
 Per aggiornare a una versione specifica:
 
@@ -254,6 +260,40 @@ PreviewAlter -- tableName: "dbo.Utenti", sql: "ALTER TABLE dbo.Utenti ADD Email 
 ExecuteAlter -- confirmationToken: "<token da PreviewAlter>"
 ```
 
+### DROP TABLE
+
+```
+PreviewDrop -- tableName: "dbo.Test"
+```
+
+Output:
+```
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!  ATTENZIONE -- OPERAZIONE DDL -- RICHIESTA CONFERMA   !!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+risk_level  : DANGER
+operazione  : DROP TABLE
+tabella     : dbo.Test
+database    : MioDb
+token       : B7E2D45F9C1A
+scade tra   : 60 secondi
+
+Schema che verrà ELIMINATO:
+------------------------------------------------------------
+pos | column | type | max_len | nullable
+1 | Id | int | - | NO
+2 | Nome | nvarchar | 100 | NO
+------------------------------------------------------------
+
+!! ATTENZIONE: questa operazione DISTRUGGE la tabella e tutti i suoi dati.
+!! Per procedere: ExecuteDrop("B7E2D45F9C1A")
+```
+
+```
+ExecuteDrop -- confirmationToken: "B7E2D45F9C1A"
+```
+
 ## Creare una release
 
 Il workflow `.github/workflows/release.yml` si attiva automaticamente al push di un tag nel formato `v*.*.*`.
@@ -277,7 +317,7 @@ Il workflow esegue in sequenza:
 | Create archives + checksums | `dr-mcp-dbschema-win-x64.zip`, `dr-mcp-dbschema-linux-x64.tar.gz`, `checksums.sha256` |
 | Create GitHub Release | Pubblica archivi e checksum con note generate automaticamente |
 
-La release e visibile in `https://github.com/davraf-amuro/dr-mcp-dbschema/releases`.
+La release è visibile in `https://github.com/davraf-amuro/dr-mcp-dbschema/releases`.
 
 ### Convenzione versioning
 
@@ -286,37 +326,45 @@ Usa [Semantic Versioning](https://semver.org/): `vMAGGIORE.MINORE.PATCH`
 | Tipo di cambiamento | Cosa incrementare |
 |---------------------|-------------------|
 | Nuovo tool o breaking change | MAGGIORE |
-| Nuova funzionalita compatibile | MINORE |
+| Nuova funzionalità compatibile | MINORE |
 | Bug fix, aggiornamento dipendenze | PATCH |
 
 ---
 
 ## Test di integrazione
 
-Il progetto include una suite di integration test che verifica il ciclo completo dei tool MCP su un database SQL Server reale.
+Il progetto include due suite di integration test che verificano il ciclo completo dei tool MCP su un database SQL Server reale.
 
 ### Struttura
 
 ```
 tests/DrMcpDbSchema.IntegrationTests/
-  McpEnvironmentFixture.cs   <- fixture condivisa: container + seed + client MCP
-  FullCycleTests.cs          <- test sequenziale a 12 step
+  McpEnvironmentFixture.cs    <- fixture Testcontainers: container + seed + client MCP
+  FullCycleTests.cs           <- test su DB isolato in Docker (12 step)
+  LocalDbFixture.cs           <- fixture per DB locale reale: connessione + client MCP
+  LocalDbRealCycleTests.cs    <- test su DB locale reale (15 step, categoria LocalDB)
 ```
 
-### Come funziona
+---
 
-La `McpEnvironmentFixture` esegue automaticamente questi passi prima dei test:
+### FullCycleTests — DB isolato con Testcontainers
 
-1. Avvia un container SQL Server via **Testcontainers** (richiede Docker attivo)
+Richiede Docker attivo. Crea un database SQL Server temporaneo in container, esegue il ciclo completo e lo distrugge al termine. Adatto alla CI.
+
+#### Come funziona
+
+`McpEnvironmentFixture` esegue questi passi prima dei test:
+
+1. Avvia un container SQL Server via **Testcontainers**
 2. Crea il database `TEST` con schema seed: tabella `Customers` + vista `ActiveCustomers`
 3. Scrive un `appsettings.json` temporaneo con `AllowCreate: true` e `AllowAlter: true`
 4. Avvia il server MCP come subprocess (`dotnet run`) e connette il client MCP
 
-### Scenario coperto da `FullCycleTests`
+#### Scenario coperto
 
 | Step | Tool | Verifica |
 |------|------|----------|
-| 1 | `ListConnections` | La connessione `(override)` e elencata e attiva |
+| 1 | `ListConnections` | La connessione `(override)` è elencata e attiva |
 | 2 | `UseConnection` | Selezione riuscita |
 | 3 | `ListViews` | Tabella `Customers` e vista `ActiveCustomers` presenti |
 | 4 | `GetViewDefinition` (vista) | Restituisce SQL `SELECT` |
@@ -329,22 +377,114 @@ La `McpEnvironmentFixture` esegue automaticamente questi passi prima dei test:
 | 11 | `ExecuteAlter` | `[OK]` nella risposta |
 | 12 | `GetViewColumns` | Colonna `Note nvarchar` presente dopo l'ALTER |
 
-### Requisiti per i test
+#### Requisiti
 
 | Requisito | Dettaglio |
 |-----------|-----------|
-| Docker Desktop | Necessario per Testcontainers (avvia SQL Server automaticamente) |
-| .NET 10 SDK | Build del server MCP dal subprocess |
+| Docker Desktop | Necessario per Testcontainers |
+| .NET 10 SDK | Build del server MCP subprocess |
 | Accesso a internet (prima esecuzione) | Pull immagine `mcr.microsoft.com/mssql/server` |
 
-### Eseguire i test
+#### Eseguire
 
 ```bash
 dotnet test tests/DrMcpDbSchema.IntegrationTests/
 ```
 
-> I test sono a esecuzione lenta (30-120 secondi) perche avviano un container Docker e compilano il server MCP. Non usare timeout brevi.
+> I test sono lenti (30–120 secondi): avviano un container Docker e compilano il server MCP.
 
 ---
 
-*Last update: 2026-03-28 -- dr-mcp-dbschema v2.5*
+### LocalDbRealCycleTests — DB locale reale
+
+Non richiede Docker. Si connette al database SQL Server locale configurato nella connection string. Simula esattamente il flusso che un assistente IA esegue in produzione: ispeziona, crea, modifica lo schema, elimina.
+
+Ogni esecuzione produce un **log dettagliato** in `test-logs/` (escluso da git) con i comandi SQL inviati al DB e le relative risposte.
+
+#### Come funziona
+
+`LocalDbFixture` esegue questi passi:
+
+1. Legge la connection string da `DB_LOCAL_CONNECTION_STRING` (env var) o usa il default hardcoded
+2. Verifica la connettività al database — salta il test automaticamente se non raggiungibile
+3. Pre-pulisce `dbo.IA_TEST` se esistesse da un run precedente fallito
+4. Scrive un `appsettings.json` temporaneo con `AllowCreate: true`, `AllowAlter: true`, `AllowDrop: true`
+5. Avvia il server MCP come subprocess e connette il client MCP
+6. Nel teardown: elimina `dbo.IA_TEST` come safety net e cancella i file temporanei
+
+#### Scenario coperto
+
+| Step | Tool | Operazione SQL sul DB |
+|------|------|-----------------------|
+| 1 | `list_views` | Verifica assenza `IA_TEST` (pre-condizione) |
+| 2 | `list_connections` | Verifica auto-selezione connessione `(override)` |
+| 3 | `preview_create` | Genera token per `CREATE TABLE dbo.IA_TEST` (4 colonne) |
+| 4 | `execute_create` | `CREATE TABLE dbo.IA_TEST (Id UNIQUEIDENTIFIER, Nome NVARCHAR(200), Valore DECIMAL(10,2), CreatedAt DATETIME2)` |
+| 5 | `list_views` | Verifica presenza `IA_TEST` dopo CREATE |
+| 6 | `get_view_columns` | Legge schema iniziale: 4 colonne |
+| 7 | `preview_alter` | Genera token per `ALTER TABLE dbo.IA_TEST ADD Aggiunta NVARCHAR(500) NULL` |
+| 8 | `execute_alter` | `ALTER TABLE dbo.IA_TEST ADD Aggiunta NVARCHAR(500) NULL` |
+| 9 | `get_view_columns` | Verifica presenza colonna `Aggiunta` |
+| 10 | `preview_alter` | Genera token per `EXEC sp_rename 'dbo.IA_TEST.Aggiunta', 'Modificata', 'COLUMN'` |
+| 11 | `execute_alter` | `EXEC sp_rename 'dbo.IA_TEST.Aggiunta', 'Modificata', 'COLUMN'` |
+| 12 | `get_view_columns` | Verifica `Modificata` presente, `Aggiunta` assente |
+| 13 | `preview_drop` | Genera token per `DROP TABLE [dbo].[IA_TEST]` |
+| 14 | `execute_drop` | `DROP TABLE [dbo].[IA_TEST]` |
+| 15 | `list_views` | Verifica assenza `IA_TEST` dopo DROP |
+
+#### Log di esecuzione
+
+Ad ogni run viene creato un file in `test-logs/localdb-YYYY-MM-DD_HH-mm-ss.log` con il dettaglio di ogni comando inviato e la risposta ricevuta:
+
+```
+=== LocalDB Full Cycle Test — 2026-03-28 21:38:43 UTC ===
+    database : Data Source=localhost;Initial Catalog=DrNutrizioNino;...
+
+────────────────────────────────────────────────────────────
+[Step 03] preview_create — dbo.IA_TEST con 4 colonne
+  → TOOL: preview_create
+    sql: CREATE TABLE dbo.IA_TEST (...)
+  ← RESPONSE:
+    risk_level  : DANGER
+    operazione  : CREATE TABLE
+    token       : 9265F1F5E972
+    ...
+
+[Step 04] execute_create
+  → TOOL: execute_create
+    confirmationToken: 9265F1F5E972
+  ← RESPONSE:
+    [OK] CREATE TABLE eseguita con successo.
+    timestamp : 2026-03-28 21:38:44 UTC
+```
+
+#### Requisiti
+
+| Requisito | Dettaglio |
+|-----------|-----------|
+| SQL Server locale | Raggiungibile con la connection string configurata |
+| .NET 10 SDK | Build del server MCP subprocess |
+| Nessun Docker | Il test usa il DB locale, non Testcontainers |
+
+#### Eseguire
+
+```bash
+# Con la connection string di default (DrNutrizioNino su localhost)
+dotnet test tests/DrMcpDbSchema.IntegrationTests/ --filter "Category=LocalDB"
+
+# Con connection string personalizzata
+$env:DB_LOCAL_CONNECTION_STRING = "Data Source=myserver;Initial Catalog=MyDb;..."
+dotnet test tests/DrMcpDbSchema.IntegrationTests/ --filter "Category=LocalDB"
+```
+
+#### Escludere dalla CI
+
+I test `LocalDB` usano un database locale non disponibile in CI. Aggiungi il filtro al workflow:
+
+```bash
+dotnet test tests/DrMcpDbSchema.IntegrationTests/ --filter "Category!=LocalDB"
+```
+
+---
+
+*Last update: 2026-03-28 — dr-mcp-dbschema v2.6*
