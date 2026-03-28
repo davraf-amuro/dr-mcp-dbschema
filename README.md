@@ -120,41 +120,33 @@ Esegui una volta nella root del progetto consumatore:
 irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1 | iex
 ```
 
-Lo script:
+Lo script in sequenza:
 1. Scarica il binario `win-x64` dall'ultima GitHub Release
-2. Lo estrae in `tools/dr-mcp-dbschema/`
-3. Mostra lo snippet `.mcp.json` da incollare
+2. Verifica il checksum SHA256
+3. Estrae il binario in `tools/dr-mcp-dbschema/`
+4. Crea o aggiorna `.mcp.json` con la voce `db-schema`
 
-Per una versione specifica:
+Per installare una versione specifica:
 
 ```powershell
-& .\setup.ps1 -Version v1.2.0
+Invoke-Expression "& { $(irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1) } -Version v1.2.0"
 ```
 
 Aggiungi `tools/dr-mcp-dbschema/` al `.gitignore` del progetto.
 
 ### Configurazione `.mcp.json`
 
-`.mcp.json` contiene il percorso dell'exe locale, che varia da macchina a macchina: **non va committato**. Si commette invece `.mcp.example.json` come riferimento.
+setup.ps1 crea o aggiorna `.mcp.json` automaticamente. Non è necessario modificarlo a mano.
 
-Aggiungi al `.gitignore` del progetto:
+`.mcp.json` contiene il percorso locale dell'exe: **non va committato**. Commetti invece `.mcp.example.json` come riferimento per il team.
+
+Aggiungi al `.gitignore`:
 ```
 .mcp.json
+tools/dr-mcp-dbschema/
 ```
 
-Crea `.mcp.example.json` (committato, con placeholder):
-```json
-{
-  "mcpServers": {
-    "db-schema": {
-      "type": "stdio",
-      "command": "tools/dr-mcp-dbschema/dr-mcp-dbschema.exe"
-    }
-  }
-}
-```
-
-Crea `.mcp.json` locale (non committato, stesso contenuto senza placeholder in questo caso):
+Crea `.mcp.example.json` (committato):
 ```json
 {
   "mcpServers": {
@@ -170,16 +162,18 @@ Riavvia Claude Code — il server si avvia automaticamente senza compilazione.
 
 ### Aggiornare il binario
 
-Ri-esegui `setup.ps1` dalla root del tuo progetto. Per una versione specifica:
-
-```powershell
-irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1 | iex -Args "-Version v2.0.0"
-```
-
-Per scaricare sempre l'ultima disponibile:
+Ri-esegui lo stesso comando di installazione dalla root del progetto:
 
 ```powershell
 irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1 | iex
+```
+
+Lo script rileva la versione già installata e stampa `Aggiornamento: vX.Y.Z → vA.B.C`.
+
+Per aggiornare a una versione specifica:
+
+```powershell
+Invoke-Expression "& { $(irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1) } -Version v2.0.0"
 ```
 
 ## Esempi d'uso
@@ -252,12 +246,11 @@ Il workflow esegue in sequenza:
 
 | Passo | Operazione |
 |-------|------------|
-| Restore + Build | Compila il progetto in Release |
-| Test | Esegue i test di integrazione (richiede Docker su GitHub Actions) |
+| Restore + Build | Compila solo il progetto principale (`dr-mcp-dbschema.csproj`) |
 | Publish win-x64 | Binario single-file self-contained per Windows |
 | Publish linux-x64 | Binario single-file self-contained per Linux |
-| Create archives | `dr-mcp-dbschema-win-x64.zip` / `dr-mcp-dbschema-linux-x64.tar.gz` |
-| Create GitHub Release | Pubblica gli archivi allegati alla release con note generate automaticamente |
+| Create archives + checksums | `dr-mcp-dbschema-win-x64.zip`, `dr-mcp-dbschema-linux-x64.tar.gz`, `checksums.sha256` |
+| Create GitHub Release | Pubblica gli archivi e il file checksum con note generate automaticamente |
 
 La release è visibile in `https://github.com/davraf-amuro/dr-mcp-dbschema/releases`.
 
@@ -341,4 +334,4 @@ dotnet test tests/DrMcpDbSchema.IntegrationTests/
 
 ---
 
-*Last update: 2026-03-27 — dr-mcp-dbschema v2.3*
+*Last update: 2026-03-28 — dr-mcp-dbschema v2.4*
