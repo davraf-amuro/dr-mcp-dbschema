@@ -20,7 +20,9 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore
-        run: dotnet restore dr-mcp-dbschema.sln
+        run: |
+          dotnet restore dr-mcp-dbschema.csproj
+          dotnet restore tests/DrMcpDbSchema.IntegrationTests/DrMcpDbSchema.IntegrationTests.csproj
 
       - name: Build
         run: dotnet build dr-mcp-dbschema.sln --configuration Release --no-restore
