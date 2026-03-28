@@ -1,6 +1,17 @@
 # dr-mcp-dbschema
 
-Server MCP per l'ispezione e la modifica dello schema di un database SQL Server. Permette a Claude Code di leggere la struttura delle tabelle e viste, e di eseguire operazioni DDL (CREATE TABLE, ALTER TABLE) con un flusso di conferma esplicita a due fasi.
+Server MCP per l'ispezione e la modifica dello schema di un database SQL Server. Compatibile con qualsiasi client che implementa il protocollo MCP: Claude Code, Claude Desktop, VS Code con GitHub Copilot, Cursor e altri.
+
+Permette all'assistente IA di leggere la struttura di tabelle e viste ed eseguire operazioni DDL (CREATE TABLE, ALTER TABLE) con un flusso di conferma esplicita a due fasi.
+
+## Client supportati
+
+| Client | File di configurazione | Chiave JSON |
+|--------|------------------------|-------------|
+| Claude Code | `.mcp.json` | `mcpServers` |
+| Claude Desktop | `claude_desktop_config.json` (globale) | `mcpServers` |
+| VS Code + GitHub Copilot (>= 1.99) | `.vscode/mcp.json` | `servers` |
+| Cursor | `.cursor/mcp.json` | `mcpServers` |
 
 ## Tool disponibili
 
@@ -8,9 +19,9 @@ Server MCP per l'ispezione e la modifica dello schema di un database SQL Server.
 
 | Tool | Parametri | Descrizione |
 |------|-----------|-------------|
-| `ListConnections` | — | Elenca le connection string trovate negli `appsettings*.json` del progetto |
+| `ListConnections` | -- | Elenca le connection string trovate negli `appsettings*.json` del progetto |
 | `UseConnection` | `name` | Seleziona quale connection string usare |
-| `ListViews` | — | Elenca tutte le tabelle e le viste del database |
+| `ListViews` | -- | Elenca tutte le tabelle e le viste del database |
 | `GetViewDefinition` | `viewName` | Restituisce il codice SQL (`CREATE VIEW`) di una vista |
 | `GetViewColumns` | `viewName` | Restituisce le colonne di una tabella o vista (nome, tipo, nullable) |
 
@@ -19,22 +30,22 @@ Server MCP per l'ispezione e la modifica dello schema di un database SQL Server.
 | Tool | Parametri | Descrizione |
 |------|-----------|-------------|
 | `PreviewCreate` | `sql` | Analizza uno statement CREATE TABLE e genera un token di conferma. Non esegue nulla. |
-| `ExecuteCreate` | `confirmationToken` | Esegue la CREATE TABLE associata al token. Il token è monouso e scade in 60 secondi. |
+| `ExecuteCreate` | `confirmationToken` | Esegue la CREATE TABLE associata al token. Il token e monouso e scade in 60 secondi. |
 | `PreviewAlter` | `tableName`, `sql` | Mostra lo schema corrente, analizza il rischio e genera un token. Scrive uno script di audit in `schema-migrations/`. |
 | `ExecuteAlter` | `confirmationToken` | Esegue l'ALTER TABLE associata al token. Aggiorna il file di audit. |
 
 ## Modello di sicurezza DDL
 
-Le operazioni DDL sono **disabilitate per default**. Devono essere abilitate esplicitamente per ambiente, separatamente per CREATE e ALTER, perché gli impatti sono diversi.
+Le operazioni DDL sono **disabilitate per default**. Devono essere abilitate esplicitamente per ambiente, separatamente per CREATE e ALTER, perche gli impatti sono diversi.
 
-Il flusso obbligatorio è a due fasi:
+Il flusso obbligatorio e a due fasi:
 
 ```
-PreviewCreate / PreviewAlter  →  conferma visiva + token
-ExecuteCreate / ExecuteAlter  →  esecuzione solo con token valido
+PreviewCreate / PreviewAlter  -->  conferma visiva + token
+ExecuteCreate / ExecuteAlter  -->  esecuzione solo con token valido
 ```
 
-Il token è:
+Il token e:
 - **monouso**: consumato al primo `Execute*`, non riutilizzabile
 - **TTL 60 secondi**: scade automaticamente se non usato
 - **legato alla connessione attiva**: non trasferibile tra sessioni
@@ -45,7 +56,7 @@ Il token è:
 |---------------------|------------|--------|
 | `DROP COLUMN` | `DANGER` | I dati nella colonna vengono persi definitivamente |
 | `ALTER COLUMN` | `DANGER` | Possibile troncamento o perdita di dati esistenti |
-| `DROP CONSTRAINT` | `DANGER` | Impatto sull'integrità referenziale |
+| `DROP CONSTRAINT` | `DANGER` | Impatto sull'integrita referenziale |
 | `ADD ...` | `WARN` | Operazione additiva, nessun dato esistente modificato |
 
 ## Audit trail ALTER
@@ -54,8 +65,8 @@ Ogni `PreviewAlter` scrive uno script in `schema-migrations/` nella directory co
 
 ```
 schema-migrations/
-  2026-03-27_1430_dbo_Utenti.sql   ← PENDING (creato da PreviewAlter)
-  2026-03-27_1431_dbo_Utenti.sql   ← EXECUTED (aggiornato da ExecuteAlter)
+  2026-03-27_1430_dbo_Utenti.sql   <- PENDING (creato da PreviewAlter)
+  2026-03-27_1431_dbo_Utenti.sql   <- EXECUTED (aggiornato da ExecuteAlter)
 ```
 
 Il file contiene: tabella, token, timestamp UTC, SQL proposto e stato finale (`PENDING` o `EXECUTED`). La directory `schema-migrations/` va inclusa nel `.gitignore` o tracciata nel repository a seconda delle policy di audit del progetto.
@@ -64,27 +75,28 @@ Il file contiene: tabella, token, timestamp UTC, SQL proposto e stato finale (`P
 
 ### Connection string
 
-Nessuna variabile d'ambiente necessaria. All'avvio il tool determina la radice di scansione con questa priorità:
+Nessuna variabile d'ambiente necessaria. All'avvio il tool determina la radice di scansione con questa priorita:
 
-1. `DB_SCHEMA_ROOT` (env var) — percorso esplicito
-2. `src/` relativa alla directory corrente — se la cartella esiste
-3. Directory corrente — fallback
+1. `DB_SCHEMA_ROOT` (env var) -- percorso esplicito
+2. `src/` relativa alla directory corrente -- se la cartella esiste
+3. Directory corrente -- fallback
 
 Da quella radice scansiona ricorsivamente tutti gli `appsettings*.json` (escludendo `bin/` e `obj/`).
 
 - Se trova **una sola** connection string, la seleziona automaticamente
-- Se ne trova **più di una**, richiede di scegliere tramite `UseConnection`
+- Se ne trova **piu di una**, richiede di scegliere tramite `UseConnection`
 
 Override esplicito della connection string:
 
-```bash
-DB_CONNECTION_STRING="Server=...;Database=...;" dotnet run ...
+```powershell
+$env:DB_CONNECTION_STRING = "Server=...;Database=...;..."
+dotnet run --project tools/dr-mcp-dbschema/dr-mcp-dbschema.csproj
 ```
 
 Override della radice di scansione (es. progetto senza `src/`):
 
-```bash
-DB_SCHEMA_ROOT="/percorso/al/progetto" dotnet run ...
+```powershell
+$env:DB_SCHEMA_ROOT = "C:\percorso\al\progetto"
 ```
 
 ### Abilitare le operazioni DDL
@@ -105,26 +117,42 @@ Aggiungi la sezione `Ddl` all'`appsettings.json` del progetto che usa il tool:
 
 | Flag | Default | Quando abilitare |
 |------|---------|-----------------|
-| `AllowCreate` | `false` | Ambienti di sviluppo/staging dove è necessario creare tabelle |
+| `AllowCreate` | `false` | Ambienti di sviluppo/staging dove e necessario creare tabelle |
 | `AllowAlter` | `false` | Ambienti dove sono necessarie migrazioni strutturali |
 
 > **Non abilitare entrambi i flag in produzione** senza un processo di revisione esplicito. Ogni ALTER in produzione dovrebbe passare da un processo di migration formale (Flyway, EF Migrations, ecc.).
 
-## Aggiungere al progetto
+## Installazione nel progetto
 
-### Installazione via script (consigliato)
+### Prerequisiti
+
+Nessun SDK .NET richiesto sul computer che usa il tool. Il binario e self-contained.
+
+Serve solo accesso di rete al database SQL Server.
+
+### Installare con setup.ps1
 
 Esegui una volta nella root del progetto consumatore:
 
 ```powershell
+# Claude Code (default)
 irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1 | iex
+
+# VS Code + GitHub Copilot
+Invoke-Expression "& { $(irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1) } -Client vscode"
+
+# Cursor
+Invoke-Expression "& { $(irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1) } -Client cursor"
+
+# Tutti i client in una sola esecuzione
+Invoke-Expression "& { $(irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1) } -Client all"
 ```
 
 Lo script in sequenza:
 1. Scarica il binario `win-x64` dall'ultima GitHub Release
 2. Verifica il checksum SHA256
 3. Estrae il binario in `tools/dr-mcp-dbschema/`
-4. Crea o aggiorna `.mcp.json` con la voce `db-schema`
+4. Crea o aggiorna il file di configurazione del client specificato
 
 Per installare una versione specifica:
 
@@ -132,43 +160,48 @@ Per installare una versione specifica:
 Invoke-Expression "& { $(irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1) } -Version v1.2.0"
 ```
 
-Aggiungi `tools/dr-mcp-dbschema/` al `.gitignore` del progetto.
+### File di configurazione generati
 
-### Configurazione `.mcp.json`
+setup.ps1 crea o aggiorna automaticamente il file corretto per il client scelto. I file locali non vanno committati.
 
-setup.ps1 crea o aggiorna `.mcp.json` automaticamente. Non è necessario modificarlo a mano.
+Aggiungi al `.gitignore` del progetto:
 
-`.mcp.json` contiene il percorso locale dell'exe: **non va committato**. Commetti invece `.mcp.example.json` come riferimento per il team.
-
-Aggiungi al `.gitignore`:
 ```
-.mcp.json
 tools/dr-mcp-dbschema/
+.mcp.json
+.vscode/mcp.json
+.cursor/mcp.json
 ```
 
-Crea `.mcp.example.json` (committato):
+Commetti invece i file `.example` come riferimento per il team. I file example sono gia presenti nel repository di dr-mcp-dbschema:
+
+| File committato | Usato da |
+|-----------------|---------|
+| `.mcp.example.json` | Claude Code / Claude Desktop |
+| `.vscode/mcp.json.example` | VS Code + GitHub Copilot |
+| `.cursor/mcp.json.example` | Cursor |
+
+### Formato per Claude Desktop (configurazione globale)
+
+Claude Desktop usa un file di configurazione globale con percorso assoluto:
+
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
 ```json
 {
   "mcpServers": {
     "db-schema": {
       "type": "stdio",
-      "command": "tools/dr-mcp-dbschema/dr-mcp-dbschema.exe"
+      "command": "C:/percorso/assoluto/tools/dr-mcp-dbschema/dr-mcp-dbschema.exe"
     }
   }
 }
 ```
 
-Riavvia Claude Code — il server si avvia automaticamente senza compilazione.
-
 ### Aggiornare il binario
 
-Ri-esegui lo stesso comando di installazione dalla root del progetto:
-
-```powershell
-irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1 | iex
-```
-
-Lo script rileva la versione già installata e stampa `Aggiornamento: vX.Y.Z → vA.B.C`.
+Ri-esegui lo stesso comando di installazione. Lo script rileva la versione gia presente e stampa `Aggiornamento: vX.Y.Z -> vA.B.C`.
 
 Per aggiornare a una versione specifica:
 
@@ -182,22 +215,22 @@ Invoke-Expression "& { $(irm https://raw.githubusercontent.com/davraf-amuro/dr-m
 
 ```
 ListConnections
-UseConnection → name: "MioDb"
+UseConnection -- name: "MioDb"
 ListViews
-GetViewDefinition → viewName: "vw_Log106"
-GetViewColumns → viewName: "dbo.Utenti"
+GetViewDefinition -- viewName: "vw_Log106"
+GetViewColumns -- viewName: "dbo.Utenti"
 ```
 
 ### CREATE TABLE
 
 ```
-PreviewCreate → sql: "CREATE TABLE dbo.Test (Id INT PRIMARY KEY, Nome NVARCHAR(100) NOT NULL)"
+PreviewCreate -- sql: "CREATE TABLE dbo.Test (Id INT PRIMARY KEY, Nome NVARCHAR(100) NOT NULL)"
 ```
 
 Output:
 ```
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!  ATTENZIONE — OPERAZIONE DDL — RICHIESTA CONFERMA     !!
+!!  ATTENZIONE -- OPERAZIONE DDL -- RICHIESTA CONFERMA   !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 risk_level  : DANGER
@@ -211,17 +244,14 @@ scade tra   : 60 secondi
 ```
 
 ```
-ExecuteCreate → confirmationToken: "A3F9C12B4E7D"
+ExecuteCreate -- confirmationToken: "A3F9C12B4E7D"
 ```
 
 ### ALTER TABLE
 
 ```
-PreviewAlter → tableName: "dbo.Utenti", sql: "ALTER TABLE dbo.Utenti ADD Email NVARCHAR(200) NULL"
-```
-
-```
-ExecuteAlter → confirmationToken: "<token da PreviewAlter>"
+PreviewAlter -- tableName: "dbo.Utenti", sql: "ALTER TABLE dbo.Utenti ADD Email NVARCHAR(200) NULL"
+ExecuteAlter -- confirmationToken: "<token da PreviewAlter>"
 ```
 
 ## Creare una release
@@ -231,14 +261,9 @@ Il workflow `.github/workflows/release.yml` si attiva automaticamente al push di
 ### Passi per pubblicare una nuova versione
 
 ```bash
-# 1. Assicurati che main sia aggiornato e i test passino
 git checkout main
 git pull
-
-# 2. Crea il tag di versione
 git tag v1.0.0
-
-# 3. Fai il push del tag — questo avvia il workflow
 git push origin v1.0.0
 ```
 
@@ -246,13 +271,13 @@ Il workflow esegue in sequenza:
 
 | Passo | Operazione |
 |-------|------------|
-| Restore + Build | Compila solo il progetto principale (`dr-mcp-dbschema.csproj`) |
+| Restore + Build | Compila solo `dr-mcp-dbschema.csproj` |
 | Publish win-x64 | Binario single-file self-contained per Windows |
 | Publish linux-x64 | Binario single-file self-contained per Linux |
 | Create archives + checksums | `dr-mcp-dbschema-win-x64.zip`, `dr-mcp-dbschema-linux-x64.tar.gz`, `checksums.sha256` |
-| Create GitHub Release | Pubblica gli archivi e il file checksum con note generate automaticamente |
+| Create GitHub Release | Pubblica archivi e checksum con note generate automaticamente |
 
-La release è visibile in `https://github.com/davraf-amuro/dr-mcp-dbschema/releases`.
+La release e visibile in `https://github.com/davraf-amuro/dr-mcp-dbschema/releases`.
 
 ### Convenzione versioning
 
@@ -261,7 +286,7 @@ Usa [Semantic Versioning](https://semver.org/): `vMAGGIORE.MINORE.PATCH`
 | Tipo di cambiamento | Cosa incrementare |
 |---------------------|-------------------|
 | Nuovo tool o breaking change | MAGGIORE |
-| Nuova funzionalità compatibile | MINORE |
+| Nuova funzionalita compatibile | MINORE |
 | Bug fix, aggiornamento dipendenze | PATCH |
 
 ---
@@ -274,8 +299,8 @@ Il progetto include una suite di integration test che verifica il ciclo completo
 
 ```
 tests/DrMcpDbSchema.IntegrationTests/
-  McpEnvironmentFixture.cs   ← fixture condivisa: container + seed + client MCP
-  FullCycleTests.cs          ← test sequenziale a 12 step
+  McpEnvironmentFixture.cs   <- fixture condivisa: container + seed + client MCP
+  FullCycleTests.cs          <- test sequenziale a 12 step
 ```
 
 ### Come funziona
@@ -291,7 +316,7 @@ La `McpEnvironmentFixture` esegue automaticamente questi passi prima dei test:
 
 | Step | Tool | Verifica |
 |------|------|----------|
-| 1 | `ListConnections` | La connessione `(override)` è elencata e attiva |
+| 1 | `ListConnections` | La connessione `(override)` e elencata e attiva |
 | 2 | `UseConnection` | Selezione riuscita |
 | 3 | `ListViews` | Tabella `Customers` e vista `ActiveCustomers` presenti |
 | 4 | `GetViewDefinition` (vista) | Restituisce SQL `SELECT` |
@@ -318,20 +343,8 @@ La `McpEnvironmentFixture` esegue automaticamente questi passi prima dei test:
 dotnet test tests/DrMcpDbSchema.IntegrationTests/
 ```
 
-> I test sono a esecuzione lenta (30–120 secondi) perché avviano un container Docker e compilano il server MCP. Non usare timeout brevi.
+> I test sono a esecuzione lenta (30-120 secondi) perche avviano un container Docker e compilano il server MCP. Non usare timeout brevi.
 
 ---
 
-## Requisiti
-
-| Requisito | Per chi |
-|-----------|---------|
-| .NET 10 SDK | Solo per sviluppare o eseguire i test |
-| Docker Desktop | Solo per eseguire i test di integrazione |
-| Accesso di rete al database SQL Server | Necessario a runtime in ogni ambiente |
-
-> I progetti che usano il binario self-contained non richiedono .NET SDK né runtime installato.
-
----
-
-*Last update: 2026-03-28 — dr-mcp-dbschema v2.4*
+*Last update: 2026-03-28 -- dr-mcp-dbschema v2.5*
