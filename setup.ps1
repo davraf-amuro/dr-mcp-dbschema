@@ -5,7 +5,8 @@
 
 .DESCRIPTION
     Scarica il binario win-x64 self-contained dall'ultima GitHub Release, verifica
-    il checksum SHA256, lo estrae in tools/dr-mcp-dbschema/ e aggiorna .mcp.json.
+    il checksum SHA256, lo estrae in tools/dr-mcp-dbschema/ e aggiorna il file di
+    configurazione MCP del client specificato.
 
 .PARAMETER Version
     Versione specifica da scaricare (es. "v1.0.0"). Default: ultima disponibile.
@@ -13,21 +14,34 @@
 .PARAMETER ToolsDir
     Directory di destinazione. Default: tools/dr-mcp-dbschema relativa alla CWD.
 
-.PARAMETER SkipMcpJson
-    Se specificato, non modifica .mcp.json.
+.PARAMETER Client
+    Client MCP da configurare: claude (default), vscode, cursor, all.
+    - claude : aggiorna .mcp.json          (Claude Code / Claude Desktop)
+    - vscode  : aggiorna .vscode/mcp.json  (VS Code con GitHub Copilot >= 1.99)
+    - cursor  : aggiorna .cursor/mcp.json  (Cursor)
+    - all     : aggiorna tutti i file sopra
+
+.PARAMETER SkipConfig
+    Se specificato, non modifica alcun file di configurazione.
 
 .EXAMPLE
-    # Ultima versione
     irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1 | iex
 
 .EXAMPLE
-    # Versione specifica
+    Invoke-Expression "& { $(irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1) } -Client vscode"
+
+.EXAMPLE
+    Invoke-Expression "& { $(irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1) } -Client all"
+
+.EXAMPLE
     Invoke-Expression "& { $(irm https://raw.githubusercontent.com/davraf-amuro/dr-mcp-dbschema/main/setup.ps1) } -Version v1.2.0"
 #>
 param(
-    [string] $Version      = "",
-    [string] $ToolsDir     = "",
-    [switch] $SkipMcpJson
+    [string] $Version    = "",
+    [string] $ToolsDir   = "",
+    [ValidateSet("claude", "vscode", "cursor", "all")]
+    [string] $Client     = "claude",
+    [switch] $SkipConfig
 )
 
 $ErrorActionPreference = "Stop"
@@ -55,13 +69,11 @@ $exePath         = Join-Path $ToolsDir $ExeName
 $isUpdate        = Test-Path $exePath
 $previousVersion = $null
 if ($isUpdate) {
-    try {
-        $previousVersion = & $exePath --version 2>$null
-    } catch { }
+    try { $previousVersion = & $exePath --version 2>$null } catch { }
 }
 
 if ($isUpdate) {
-    Write-Host "Aggiornamento: $previousVersion → $tag"
+    Write-Host "Aggiornamento: $previousVersion -> $tag"
 } else {
     Write-Host "Installazione: $tag"
 }
@@ -73,7 +85,7 @@ if (-not $asset) {
     exit 1
 }
 
-# Checksum SHA256 (opzionale ma verificato se disponibile)
+# Checksum SHA256 (verificato se disponibile nella release)
 $checksumAsset = $release.assets | Where-Object { $_.name -eq "checksums.sha256" } | Select-Object -First 1
 
 # Scarica zip
@@ -81,7 +93,7 @@ $zipPath = Join-Path $env:TEMP "dr-mcp-dbschema-$tag.zip"
 Write-Host "Scarico $($asset.name)..."
 Invoke-WebRequest $asset.browser_download_url -OutFile $zipPath
 
-# Verifica SHA256 se il file checksum è disponibile nella release
+# Verifica SHA256
 if ($checksumAsset) {
     $checksumFile = Join-Path $env:TEMP "dr-mcp-dbschema-$tag.sha256"
     Invoke-WebRequest $checksumAsset.browser_download_url -OutFile $checksumFile
@@ -98,7 +110,7 @@ if ($checksumAsset) {
     }
     Remove-Item $checksumFile -Force
 } else {
-    Write-Host "  (checksums.sha256 non disponibile in questa release — verifica saltata)" -ForegroundColor Yellow
+    Write-Host "  (checksums.sha256 non disponibile - verifica saltata)" -ForegroundColor Yellow
 }
 
 # Estrai
@@ -107,11 +119,10 @@ Expand-Archive -Path $zipPath -DestinationPath $ToolsDir -Force
 Remove-Item $zipPath
 
 if (-not (Test-Path $exePath)) {
-    Write-Error "Installazione fallita: $exePath non trovato dopo l'estrazione."
+    Write-Error "Installazione fallita: exe non trovato dopo l'estrazione."
     exit 1
 }
 
-# Risultato
 Write-Host ""
 if ($isUpdate) {
     Write-Host "[OK] dr-mcp-dbschema aggiornato a $tag" -ForegroundColor Green
@@ -120,47 +131,101 @@ if ($isUpdate) {
 }
 Write-Host "     $exePath"
 
-# Patch .mcp.json
-if (-not $SkipMcpJson) {
-    $mcpJsonPath = Join-Path (Get-Location) ".mcp.json"
-    $relExePath  = "tools/dr-mcp-dbschema/$ExeName"
-    $serverEntry = @{
-        type    = "stdio"
-        command = $relExePath
-    }
+# ─── Funzioni di configurazione ──────────────────────────────────────────────
 
-    if (Test-Path $mcpJsonPath) {
+function Write-JsonConfig($path, $config) {
+    $config | ConvertTo-Json -Depth 10 | Set-Content $path -Encoding UTF8
+}
+
+function Set-ClaudeConfig {
+    $cfgPath    = Join-Path (Get-Location) ".mcp.json"
+    $relExePath = "tools/dr-mcp-dbschema/$ExeName"
+    $entry      = [PSCustomObject]@{ type = "stdio"; command = $relExePath }
+
+    if (Test-Path $cfgPath) {
         try {
-            $mcpConfig = Get-Content $mcpJsonPath -Raw | ConvertFrom-Json
-            if (-not $mcpConfig.mcpServers) {
-                $mcpConfig | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value ([PSCustomObject]@{})
+            $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json
+            if (-not $cfg.mcpServers) {
+                $cfg | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value ([PSCustomObject]@{})
             }
-            $mcpConfig.mcpServers | Add-Member -MemberType NoteProperty -Name "db-schema" -Value ([PSCustomObject]$serverEntry) -Force
-            $mcpConfig | ConvertTo-Json -Depth 10 | Set-Content $mcpJsonPath -Encoding UTF8
-            Write-Host ""
-            Write-Host ".mcp.json aggiornato con la voce db-schema." -ForegroundColor Cyan
+            $cfg.mcpServers | Add-Member -MemberType NoteProperty -Name "db-schema" -Value $entry -Force
+            Write-JsonConfig $cfgPath $cfg
+            Write-Host "  .mcp.json aggiornato." -ForegroundColor Cyan
         } catch {
-            Write-Host ""
-            Write-Host ".mcp.json esistente non modificabile automaticamente. Aggiungi manualmente:" -ForegroundColor Yellow
-            Write-Host @"
-  "db-schema": {
-    "type": "stdio",
-    "command": "$relExePath"
-  }
-"@
+            Write-Host "  .mcp.json esiste ma non e modificabile. Aggiungi manualmente la voce db-schema." -ForegroundColor Yellow
         }
     } else {
-        $newConfig = @{
-            mcpServers = @{
-                "db-schema" = $serverEntry
+        Write-JsonConfig $cfgPath @{ mcpServers = @{ "db-schema" = $entry } }
+        Write-Host "  .mcp.json creato." -ForegroundColor Cyan
+        Write-Host "  ATTENZIONE: aggiungi .mcp.json al .gitignore." -ForegroundColor Yellow
+    }
+}
+
+function Set-VsCodeConfig {
+    $dir        = Join-Path (Get-Location) ".vscode"
+    $cfgPath    = Join-Path $dir "mcp.json"
+    # VS Code risolve ${workspaceFolder} a runtime — path portabile tra macchine
+    $relExePath = '${workspaceFolder}/tools/dr-mcp-dbschema/' + $ExeName
+    $entry      = [PSCustomObject]@{ type = "stdio"; command = $relExePath }
+
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+
+    if (Test-Path $cfgPath) {
+        try {
+            $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json
+            if (-not $cfg.servers) {
+                $cfg | Add-Member -MemberType NoteProperty -Name "servers" -Value ([PSCustomObject]@{})
             }
+            $cfg.servers | Add-Member -MemberType NoteProperty -Name "db-schema" -Value $entry -Force
+            Write-JsonConfig $cfgPath $cfg
+            Write-Host "  .vscode/mcp.json aggiornato." -ForegroundColor Cyan
+        } catch {
+            Write-Host "  .vscode/mcp.json esiste ma non e modificabile. Aggiungi manualmente la voce db-schema." -ForegroundColor Yellow
         }
-        $newConfig | ConvertTo-Json -Depth 10 | Set-Content $mcpJsonPath -Encoding UTF8
-        Write-Host ""
-        Write-Host ".mcp.json creato con la voce db-schema." -ForegroundColor Cyan
-        Write-Host "  ATTENZIONE: .mcp.json non va committato (aggiungilo a .gitignore)." -ForegroundColor Yellow
+    } else {
+        Write-JsonConfig $cfgPath @{ servers = @{ "db-schema" = $entry } }
+        Write-Host "  .vscode/mcp.json creato (VS Code >= 1.99 con GitHub Copilot)." -ForegroundColor Cyan
+    }
+}
+
+function Set-CursorConfig {
+    $dir        = Join-Path (Get-Location) ".cursor"
+    $cfgPath    = Join-Path $dir "mcp.json"
+    $relExePath = "tools/dr-mcp-dbschema/$ExeName"
+    $entry      = [PSCustomObject]@{ type = "stdio"; command = $relExePath }
+
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+
+    if (Test-Path $cfgPath) {
+        try {
+            $cfg = Get-Content $cfgPath -Raw | ConvertFrom-Json
+            if (-not $cfg.mcpServers) {
+                $cfg | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value ([PSCustomObject]@{})
+            }
+            $cfg.mcpServers | Add-Member -MemberType NoteProperty -Name "db-schema" -Value $entry -Force
+            Write-JsonConfig $cfgPath $cfg
+            Write-Host "  .cursor/mcp.json aggiornato." -ForegroundColor Cyan
+        } catch {
+            Write-Host "  .cursor/mcp.json esiste ma non e modificabile. Aggiungi manualmente la voce db-schema." -ForegroundColor Yellow
+        }
+    } else {
+        Write-JsonConfig $cfgPath @{ mcpServers = @{ "db-schema" = $entry } }
+        Write-Host "  .cursor/mcp.json creato." -ForegroundColor Cyan
+    }
+}
+
+# ─── Esecuzione ──────────────────────────────────────────────────────────────
+
+if (-not $SkipConfig) {
+    Write-Host ""
+    Write-Host "Configurazione client MCP ($Client):" -ForegroundColor White
+    switch ($Client) {
+        "claude" { Set-ClaudeConfig }
+        "vscode" { Set-VsCodeConfig }
+        "cursor" { Set-CursorConfig }
+        "all"    { Set-ClaudeConfig; Set-VsCodeConfig; Set-CursorConfig }
     }
 }
 
 Write-Host ""
-Write-Host "Riavvia Claude Code per caricare il server MCP." -ForegroundColor Cyan
+Write-Host "Riavvia il tuo IDE per caricare il server MCP." -ForegroundColor Cyan

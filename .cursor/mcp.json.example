@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "db-schema": {
+      "type": "stdio",
+      "command": "tools/dr-mcp-dbschema/dr-mcp-dbschema.exe"
+    }
+  }
+}
