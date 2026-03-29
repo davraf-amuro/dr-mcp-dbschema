@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
+using Serilog;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 
@@ -38,6 +39,8 @@ var appsettingsFiles = Directory.GetFiles(searchRoot, "appsettings*.json", Searc
 
 var available = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 var ddlSettings = new DdlSettings();
+var enableFileLog = false;
+var logFilePath = "dr-mcp-dbschema.log";
 
 foreach (var file in appsettingsFiles)
 {
@@ -61,6 +64,16 @@ foreach (var file in appsettingsFiles)
             ddlSettings.AllowAlter = allowAlter;
         if (bool.TryParse(ddlSection["AllowDrop"], out var allowDrop))
             ddlSettings.AllowDrop = allowDrop;
+    }
+
+    // Legge impostazioni di logging (l'ultimo file trovato con la sezione vince)
+    var loggingSection = config.GetSection("Logging");
+    if (loggingSection.Exists())
+    {
+        if (bool.TryParse(loggingSection["EnableFileLog"], out var efl))
+            enableFileLog = efl;
+        if (!string.IsNullOrWhiteSpace(loggingSection["LogFile"]))
+            logFilePath = loggingSection["LogFile"]!;
     }
 }
 
@@ -86,6 +99,16 @@ var tokenStore = new DdlTokenStore();
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.ClearProviders();
+
+if (enableFileLog)
+{
+    var serilogLogger = new LoggerConfiguration()
+        .MinimumLevel.Verbose()
+        .WriteTo.File(logFilePath, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true)
+        .CreateLogger();
+    builder.Logging.AddSerilog(serilogLogger);
+    Console.Error.WriteLine($"[dr-mcp-dbschema] log attivo: {Path.GetFullPath(logFilePath)}");
+}
 
 builder.Services.AddSingleton(state);
 builder.Services.AddSingleton(ddlSettings);
