@@ -162,6 +162,64 @@ dotnet publish -r linux-x64 --self-contained true -o publish/linux-x64
 
 ---
 
+## Troubleshooting
+
+### `[NO_CONNECTIONS_CONFIGURED]` — nessuna connection string trovata
+
+Il tool non ha trovato alcuna `ConnectionStrings` nei file `appsettings*.json` scansionati.
+
+1. Lancia `Diagnostics()` per vedere quali file sono stati trovati e da quale directory
+2. Verifica che `DB_SCHEMA_ROOT` (o `src/`) punti alla cartella corretta del progetto
+3. In alternativa, imposta `DB_CONNECTION_STRING` come variabile d'ambiente
+
+### `[NO_ACTIVE_CONNECTION]` — più connection string, nessuna selezionata
+
+Si verifica quando sono disponibili più CS e nessuna auto-selezione è stata attivata.
+
+- Usa `UseConnection("<nome>")` per selezionare esplicitamente
+- Oppure imposta `ASPNETCORE_ENVIRONMENT` al nome dell'ambiente (es. `Development`): il tool selezionerà automaticamente la CS che proviene da `appsettings.Development.json`
+
+### Priorità delle configurazioni
+
+L'ordine di lettura è (last-wins, priorità crescente):
+
+1. `appsettings.json` (base)
+2. `appsettings.{env}.json` (es. `appsettings.Development.json`)
+3. `appsettings.local.json` (override locale, non committare)
+4. Variabile d'ambiente `DB_CONNECTION_STRING` (vince su tutto)
+
+### `Token non valido o scaduto`
+
+I token DDL scadono in **60 secondi**. Se il token è scaduto:
+1. Rilancia il corrispondente `Preview*` per ottenere un nuovo token
+2. Esegui `Execute*` entro 60 secondi
+
+### `Operazione DDL non abilitata`
+
+CREATE / ALTER / DROP sono disabilitati per default. Per abilitarli:
+
+```json
+{
+  "Ddl": {
+    "AllowCreate": true,
+    "AllowAlter": true,
+    "AllowDrop": true
+  }
+}
+```
+
+> Consiglio: usa `appsettings.local.json` (non committato) per abilitare i flag DDL in locale.
+
+### Errore di build: file bloccato da un processo attivo
+
+Se Claude Code ha il MCP server in esecuzione, il build in `Debug` fallisce perché l'exe è in uso. Soluzione:
+
+```bash
+dotnet test tests/dr-mcp-dbschema.Tests -c Release
+```
+
+---
+
 ## Sicurezza
 
 - **Token monouso** — ogni operazione DDL richiede un token che scade in 60 secondi e viene consumato all'uso

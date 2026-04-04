@@ -189,22 +189,37 @@ await builder.Build().RunAsync();
 
 // ---------------------------------------------------------------------------
 
+/// <summary>Stato globale delle connection string disponibili e di quella attualmente selezionata.</summary>
 public class ConnectionState
 {
+    /// <summary>Tutte le connection string trovate negli appsettings, indicizzate per nome.</summary>
     public Dictionary<string, string> Available { get; set; } = new();
-    /// <summary>File appsettings sorgente per ogni CS (chiave = nome CS, valore = path assoluto del file)</summary>
+    /// <summary>File appsettings sorgente per ogni CS (chiave = nome CS, valore = path assoluto del file).</summary>
     public Dictionary<string, string> AvailableSources { get; set; } = new();
+    /// <summary>Nome della connection string attualmente attiva (null se nessuna selezionata).</summary>
     public string? ActiveName { get; set; }
+    /// <summary>Valore della connection string attualmente attiva.</summary>
     public string? ActiveConnectionString { get; set; }
+    /// <summary>Directory di lavoro del processo host (base per la risoluzione di tutti i path relativi).</summary>
     public string WorkDir { get; set; } = string.Empty;
+    /// <summary>Radice di scansione degli appsettings (DB_SCHEMA_ROOT, src/ o WorkDir).</summary>
     public string SearchRoot { get; set; } = string.Empty;
+    /// <summary>Lista dei file appsettings*.json trovati durante la scansione iniziale.</summary>
     public List<string> ScannedFiles { get; set; } = new();
 }
 
+/// <summary>
+/// Permessi per le operazioni DDL distruttive.
+/// Tutti disabilitati per default: abilitare solo negli ambienti in cui è esplicitamente necessario
+/// (es. development, staging). Non abilitare in produzione salvo casi controllati.
+/// </summary>
 public class DdlSettings
 {
+    /// <summary>Abilita <c>PreviewCreate</c> / <c>ExecuteCreate</c>. Default: false.</summary>
     public bool AllowCreate { get; set; } = false;
+    /// <summary>Abilita <c>PreviewAlter</c> / <c>ExecuteAlter</c>. Default: false.</summary>
     public bool AllowAlter { get; set; } = false;
+    /// <summary>Abilita <c>PreviewDrop</c> / <c>ExecuteDrop</c>. Default: false.</summary>
     public bool AllowDrop { get; set; } = false;
 }
 
@@ -851,6 +866,9 @@ internal static class DbSchemaHelpers
     /// <summary>Estrae il nome dell'oggetto (tabella/vista) da uno statement SQL contenente TABLE &lt;nome&gt;.</summary>
     internal static string? ExtractObjectName(string sql)
     {
+        // Pattern: TABLE [schema.]name
+        // Gruppo 1 (opzionale): schema con o senza parentesi quadre → es. [dbo] o dbo
+        // Gruppo 2: nome oggetto con o senza parentesi quadre → es. [Orders] o Orders
         var match = System.Text.RegularExpressions.Regex.Match(
             sql, @"\bTABLE\s+(?:\[?(\w+)\]?\.)?\[?(\w+)\]?",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
@@ -875,6 +893,7 @@ internal static class DbSchemaHelpers
         if (upper.Contains("ADD") && warnings.Count == 0)
             warnings.Add("- ADD: operazione additiva, nessun dato esistente viene modificato.");
 
+        // DANGER se almeno un avviso implica perdita irreversibile di dati o violazione di integrità referenziale
         var level = warnings.Any(w => w.Contains("PERSI") || w.Contains("troncamento") || w.Contains("integrità"))
             ? "DANGER"
             : "WARN";
