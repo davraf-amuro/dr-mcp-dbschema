@@ -1,0 +1,17 @@
+## .NET / MSBuild
+bin/
+obj/
+*.user
+.vs/
+publish/
+
+## Logs generati dal tool
+*.log
+*.log.*
+
+## Audit file generati dal tool (opzionale — decommentare per ignorarli)
+# schema-migrations/
+
+## OS
+.DS_Store
+Thumbs.db
