@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build-and-test:
@@ -12,17 +12,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.x'
+          submodules: true
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
 
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore dr-mcp-dbschema.csproj
 
       - name: Build
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build dr-mcp-dbschema.csproj --configuration Release --no-restore
 
-      - name: Test
+      - name: Unit Test
         run: dotnet test tests/dr-mcp-dbschema.Tests --configuration Release --no-build --verbosity normal

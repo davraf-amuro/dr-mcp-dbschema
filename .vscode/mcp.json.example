@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "db-schema": {
+      "type": "stdio",
+      "command": "${workspaceFolder}/tools/dr-mcp-dbschema/dr-mcp-dbschema.exe"
+    }
+  }
+}

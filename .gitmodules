@@ -1,0 +1,3 @@
+[submodule "davraf-guidelines"]
+	path = davraf-guidelines
+	url = https://github.com/davraf-amuro/davraf-guidelines.git
