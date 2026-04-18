@@ -35,5 +35,5 @@ Ogni task segue il ciclo definito in `dev-cycle.instructions.md`:
 - **Verifica** (rileggi) dopo ogni modifica
 - **Segnala** incertezza — non assumere silenziosamente
 
-*Template v1.3 - .NET 10 - Token-optimized for AI agents* - Last Update 2026-03-25 — claude-sonnet-4-6
+*Template v1.4 - .NET 10 - Token-optimized for AI agents* - Last Update 2026-03-30 — claude-sonnet-4-6
 

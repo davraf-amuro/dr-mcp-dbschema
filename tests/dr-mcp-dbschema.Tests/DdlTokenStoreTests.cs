@@ -94,4 +94,90 @@ public class DdlTokenStoreTests
 
         Assert.NotNull(result);
     }
+
+    [Fact]
+    public void Add_InsertIntoSql_StoredAndConsumedCorrectly()
+    {
+        var store = new DdlTokenStore();
+        var pending = new PendingDdl
+        {
+            Sql = "INSERT INTO Orders (Name) VALUES ('Test')",
+            Kind = DdlKind.Create,
+            TableName = "Orders",
+            ConnectionName = "TestDb",
+            ConnectionString = "Server=localhost;Database=Test;",
+            ExpiresAt = DateTime.UtcNow.AddSeconds(60)
+        };
+
+        var token = store.Add(pending);
+        var result = store.Consume(token);
+
+        Assert.NotNull(result);
+        Assert.Equal(pending.Sql, result.Sql);
+    }
+
+    [Fact]
+    public void Add_UpdateSql_StoredAndConsumedCorrectly()
+    {
+        var store = new DdlTokenStore();
+        var pending = new PendingDdl
+        {
+            Sql = "UPDATE Orders SET Name = 'Updated' WHERE Id = 1",
+            Kind = DdlKind.Alter,
+            TableName = "Orders",
+            ConnectionName = "TestDb",
+            ConnectionString = "Server=localhost;Database=Test;",
+            ExpiresAt = DateTime.UtcNow.AddSeconds(60)
+        };
+
+        var token = store.Add(pending);
+        var result = store.Consume(token);
+
+        Assert.NotNull(result);
+        Assert.Equal(pending.Sql, result.Sql);
+        Assert.Equal(DdlKind.Alter, result.Kind);
+    }
+
+    [Fact]
+    public void Add_DeleteSql_StoredAndConsumedCorrectly()
+    {
+        var store = new DdlTokenStore();
+        var pending = new PendingDdl
+        {
+            Sql = "DELETE FROM Orders WHERE Id = 1",
+            Kind = DdlKind.Alter,
+            TableName = "Orders",
+            ConnectionName = "TestDb",
+            ConnectionString = "Server=localhost;Database=Test;",
+            ExpiresAt = DateTime.UtcNow.AddSeconds(60)
+        };
+
+        var token = store.Add(pending);
+        var result = store.Consume(token);
+
+        Assert.NotNull(result);
+        Assert.Equal(pending.Sql, result.Sql);
+    }
+
+    [Fact]
+    public void Add_DropTableSql_StoredAndConsumedCorrectly()
+    {
+        var store = new DdlTokenStore();
+        var pending = new PendingDdl
+        {
+            Sql = "DROP TABLE [dbo].[Orders]",
+            Kind = DdlKind.Drop,
+            TableName = "dbo.Orders",
+            ConnectionName = "TestDb",
+            ConnectionString = "Server=localhost;Database=Test;",
+            ExpiresAt = DateTime.UtcNow.AddSeconds(60)
+        };
+
+        var token = store.Add(pending);
+        var result = store.Consume(token);
+
+        Assert.NotNull(result);
+        Assert.Equal(DdlKind.Drop, result.Kind);
+        Assert.Equal("dbo.Orders", result.TableName);
+    }
 }

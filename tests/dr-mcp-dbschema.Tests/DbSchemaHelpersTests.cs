@@ -26,8 +26,20 @@ public class DbSchemaHelpersTests
     }
 
     [Theory]
+    [InlineData("DROP TABLE Orders", "Orders")]
+    [InlineData("DROP TABLE dbo.Orders", "dbo.Orders")]
+    [InlineData("drop table [dbo].[Orders]", "dbo.Orders")]
+    public void ExtractObjectName_DropTable_ReturnsTableName(string sql, string expected)
+    {
+        var result = DbSchemaHelpers.ExtractObjectName(sql);
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
     [InlineData("SELECT * FROM Orders")]
     [InlineData("INSERT INTO Orders VALUES (1)")]
+    [InlineData("UPDATE Orders SET Name = 'Test' WHERE Id = 1")]
+    [InlineData("DELETE FROM Orders WHERE Id = 1")]
     [InlineData("")]
     public void ExtractObjectName_NoTableKeyword_ReturnsNull(string sql)
     {

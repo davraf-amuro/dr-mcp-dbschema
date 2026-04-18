@@ -1,5 +1,5 @@
-using ModelContextProtocol.Protocol;
 using System.Text;
+using ModelContextProtocol.Protocol;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -200,7 +200,10 @@ public class LocalDbRealCycleTests
         // Log risposta dal DB (tramite MCP)
         Log("  ← RESPONSE:");
         foreach (var line in text.Split('\n'))
+        {
             Log($"    {line}");
+        }
+
         Log(string.Empty);
 
         _output.WriteLine(text);

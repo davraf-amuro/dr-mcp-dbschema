@@ -14,7 +14,7 @@ namespace DrMcpDbSchema.IntegrationTests;
 public sealed class LocalDbFixture : IAsyncLifetime
 {
     public const string DefaultConnectionString =
-        "Data Source=localhost;Initial Catalog=DrNutrizioNino;Integrated Security=True;Encrypt=True;Trust Server Certificate=True";
+        "Data Source=localhost;Initial Catalog=dr-mcp-dbschema;Integrated Security=True;Encrypt=True;Trust Server Certificate=True";
 
     private string? _tempSettingsDir;
 
@@ -39,7 +39,7 @@ public sealed class LocalDbFixture : IAsyncLifetime
         }
         catch (Exception ex)
         {
-            SkipReason = $"Database DrNutrizioNino non raggiungibile: {ex.Message}";
+            SkipReason = $"Database dr-mcp-dbschema non raggiungibile: {ex.Message}";
             return;
         }
 
@@ -73,7 +73,9 @@ public sealed class LocalDbFixture : IAsyncLifetime
     public async Task DisposeAsync()
     {
         if (Client is not null)
+        {
             await Client.DisposeAsync();
+        }
 
         // Safety net: elimina IA_TEST se ancora presente (es. test fallito a metà)
         if (SkipReason is null)
@@ -90,7 +92,9 @@ public sealed class LocalDbFixture : IAsyncLifetime
         }
 
         if (_tempSettingsDir is not null && Directory.Exists(_tempSettingsDir))
+        {
             Directory.Delete(_tempSettingsDir, recursive: true);
+        }
     }
 
     private static string ResolveMcpCsprojPath()

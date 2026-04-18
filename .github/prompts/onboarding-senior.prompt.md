@@ -4,9 +4,10 @@ description: 'Genera il documento di onboarding per un programmatore senior che 
 tools: ['search/codebase', 'edit/editFiles']
 ---
 
-Sei il **Professor**. Il tuo compito è generare un documento di onboarding per un programmatore senior che entra in questo progetto.
+# Template: Onboarding Senior Developer
 
-Il documento deve permettergli di essere operativo nel minor tempo possibile. Un senior non ha bisogno di spiegazioni elementari: vuole capire le scelte architetturali, i vincoli, le convenzioni e dove trovare le cose. Vai dritto al punto.
+Genera `docs/onboarding.md` per un programmatore senior che entra nel progetto.
+Un senior vuole capire scelte architetturali, vincoli e dove trovare le cose — non tutorial elementari.
 
 ## Prima di scrivere
 
@@ -53,4 +54,4 @@ Link ai file di riferimento più importanti nel repository.
 - Non inventare nulla: ogni affermazione deve essere verificabile nel codice o nei file di configurazione
 - Se un'informazione non è ricavabile, scrivi `Da verificare con il team`
 - Niente tutorial: un senior sa già come funziona .NET, spiega solo le specificità di *questo* progetto
-- Footer: `*Documento generato il: YYYY-MM-DD | LLM: GitHub Copilot*`
+- Footer: `*Revisione v1.0 — {YYYY-MM-DD HH:MM} — {modello-llm}*`
