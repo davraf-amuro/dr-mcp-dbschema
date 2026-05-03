@@ -144,7 +144,7 @@ Aggiungi la sezione `Ddl` all'`appsettings.json` del progetto che usa il tool:
 
 ### Prerequisiti
 
-Nessun SDK .NET richiesto sul computer che usa il tool. Il binario è self-contained.
+Nessun SDK .NET richiesto sul computer che usa il tool. Il binario è self-contained: include il runtime .NET e tutte le librerie native, compresa `sni.dll` di Microsoft.Data.SqlClient. Non servono DLL separate.
 
 Serve solo accesso di rete al database SQL Server.
 
@@ -170,7 +170,8 @@ Lo script in sequenza:
 1. Scarica il binario `win-x64` dall'ultima GitHub Release
 2. Verifica il checksum SHA256
 3. Estrae il binario in `tools/dr-mcp-dbschema/`
-4. Crea o aggiorna il file di configurazione del client specificato
+4. Esegue `dr-mcp-dbschema.exe --version` per verificare che il binario risponda correttamente
+5. Crea o aggiorna il file di configurazione del client specificato
 
 Per installare una versione specifica:
 
@@ -499,7 +500,7 @@ dotnet test tests/DrMcpDbSchema.IntegrationTests/ --filter "Category!=LocalDB"
 
 ---
 
-*Last update: 2026-03-28 — dr-mcp-dbschema v2.7*
+*Last update: 2026-05-03 — dr-mcp-dbschema v0.2.0*
 
 ---
 
@@ -539,6 +540,15 @@ CREATE / ALTER / DROP sono disabilitati per default. Per abilitarli aggiorna `ap
 ```
 
 > Consiglio: usa `appsettings.local.json` (escluso dal git) per abilitare i flag DDL in locale.
+
+### `Verifica installazione FALLITA` — il binario non risponde
+
+`setup.ps1` esegue automaticamente `dr-mcp-dbschema.exe --version` dopo l'estrazione. Se fallisce:
+
+1. Verifica che l'exe sia presente: `Test-Path tools\dr-mcp-dbschema\dr-mcp-dbschema.exe`
+2. Prova manualmente: `tools\dr-mcp-dbschema\dr-mcp-dbschema.exe --version`
+3. Se Windows blocca l'exe scaricato da internet: `Unblock-File tools\dr-mcp-dbschema\dr-mcp-dbschema.exe`
+4. Alcuni ambienti aziendali (AppLocker, antivirus) bloccano l'esecuzione di file estratti. Contatta l'amministratore di sistema.
 
 ### Errore di build — file bloccato da un processo attivo
 

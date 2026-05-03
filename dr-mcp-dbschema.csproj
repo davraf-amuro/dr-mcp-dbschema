@@ -14,6 +14,8 @@
     <!-- Publish as single self-contained executable per platform -->
     <PublishSingleFile>true</PublishSingleFile>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- IncludeNativeLibrariesForSelfExtract: bundla sni.dll (SqlClient) dentro l'exe evitando estrazione in %TEMP% -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <!-- PublishTrimmed=false: SqlClient e ModelContextProtocol usano reflection -->
   </PropertyGroup>
 

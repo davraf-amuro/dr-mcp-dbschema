@@ -123,6 +123,21 @@ if (-not (Test-Path $exePath)) {
     exit 1
 }
 
+Write-Host "Verifica installazione..." -NoNewline
+try {
+    $ver = & $exePath --version 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host " FALLITA" -ForegroundColor Red
+        Write-Error "Il tool non risponde (exit code: $LASTEXITCODE). Output: $ver`nVerifica dipendenze o reinstalla."
+        exit 1
+    }
+    Write-Host " OK ($ver)" -ForegroundColor Green
+} catch {
+    Write-Host " FALLITA" -ForegroundColor Red
+    Write-Error "Impossibile avviare il tool: $_"
+    exit 1
+}
+
 Write-Host ""
 if ($isUpdate) {
     Write-Host "[OK] dr-mcp-dbschema aggiornato a $tag" -ForegroundColor Green

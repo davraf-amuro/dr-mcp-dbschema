@@ -8,6 +8,13 @@ using Serilog;
 
 [assembly: InternalsVisibleTo("dr-mcp-dbschema.Tests")]
 
+if (args.Length == 1 && args[0] == "--version")
+{
+    var version = typeof(Program).Assembly.GetName().Version;
+    Console.WriteLine($"{version?.Major}.{version?.Minor}.{version?.Build}");
+    return;
+}
+
 var workDir = Directory.GetCurrentDirectory();
 
 Console.Error.WriteLine($"[dr-mcp-dbschema] avvio — CWD: {workDir}");
