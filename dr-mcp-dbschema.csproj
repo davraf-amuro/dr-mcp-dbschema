@@ -6,7 +6,7 @@
     <RootNamespace>Dr.Mcp.DbSchema</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>0.2.0</Version>
+    <Version>0.2.2</Version>
     <Authors>davraf</Authors>
     <Description>MCP server .NET 10 per ispezione schema SQL Server e operazioni DDL con pattern preview/confirm e audit trail.</Description>
     <RepositoryUrl>https://github.com/davraf-amuro/dr-mcp-dbschema</RepositoryUrl>

@@ -500,7 +500,7 @@ dotnet test tests/DrMcpDbSchema.IntegrationTests/ --filter "Category!=LocalDB"
 
 ---
 
-*Last update: 2026-05-03 — dr-mcp-dbschema v0.2.0*
+*Last update: 2026-05-04 — dr-mcp-dbschema v0.2.2*
 
 ---
 
