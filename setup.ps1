@@ -229,6 +229,52 @@ function Set-CursorConfig {
     }
 }
 
+function New-AppSettingsTemplate {
+    $cwd       = Get-Location
+    $targetDir = if (Test-Path (Join-Path $cwd "src")) { Join-Path $cwd "src" } else { $cwd }
+    $cfgPath   = Join-Path $targetDir "appsettings.local.json"
+
+    $template = [ordered]@{
+        ConnectionStrings = [ordered]@{
+            MyDb = "Server=localhost;Database=MyDatabase;Integrated Security=true;"
+        }
+        Ddl = [ordered]@{
+            AllowCreate = $false
+            AllowAlter  = $false
+            AllowDrop   = $false
+        }
+        Logging = [ordered]@{
+            EnableFileLog = $false
+            LogFile       = "dr-mcp-dbschema.log"
+        }
+    }
+
+    if (Test-Path $cfgPath) {
+        try {
+            $existing = Get-Content $cfgPath -Raw | ConvertFrom-Json -AsHashtable
+            $added = @()
+            foreach ($key in $template.Keys) {
+                if (-not $existing.ContainsKey($key)) {
+                    $existing[$key] = $template[$key]
+                    $added += $key
+                }
+            }
+            if ($added.Count -gt 0) {
+                $existing | ConvertTo-Json -Depth 10 | Set-Content $cfgPath -Encoding UTF8
+                Write-Host "  appsettings.local.json: sezioni aggiunte: $($added -join ', ')" -ForegroundColor Cyan
+            } else {
+                Write-Host "  appsettings.local.json: gia completo, nessuna modifica." -ForegroundColor Gray
+            }
+        } catch {
+            Write-Host "  appsettings.local.json: esiste ma non modificabile. Aggiorna manualmente." -ForegroundColor Yellow
+        }
+    } else {
+        $template | ConvertTo-Json -Depth 10 | Set-Content $cfgPath -Encoding UTF8
+        Write-Host "  appsettings.local.json creato in: $targetDir" -ForegroundColor Cyan
+        Write-Host "  Compila la ConnectionString e configura i permessi DDL." -ForegroundColor Yellow
+    }
+}
+
 # ─── Esecuzione ──────────────────────────────────────────────────────────────
 
 if (-not $SkipConfig) {
@@ -241,6 +287,10 @@ if (-not $SkipConfig) {
         "all"    { Set-ClaudeConfig; Set-VsCodeConfig; Set-CursorConfig }
     }
 }
+
+Write-Host ""
+Write-Host "Configurazione appsettings:" -ForegroundColor White
+New-AppSettingsTemplate
 
 Write-Host ""
 Write-Host "Riavvia il tuo IDE per caricare il server MCP." -ForegroundColor Cyan

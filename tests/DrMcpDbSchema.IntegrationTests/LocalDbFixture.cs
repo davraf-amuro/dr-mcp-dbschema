@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using ModelContextProtocol.Client;
@@ -6,7 +7,7 @@ using Xunit;
 namespace DrMcpDbSchema.IntegrationTests;
 
 /// <summary>
-/// Fixture per test di integrazione sul database locale DrNutrizioNino.
+/// Fixture per test di integrazione sul database locale.
 /// Legge la connection string da DB_LOCAL_CONNECTION_STRING (env var) o usa il default.
 /// Salta i test automaticamente se il database non è raggiungibile.
 /// Pre-pulisce e post-pulisce la tabella dbo.IA_TEST come safety net.
@@ -17,6 +18,7 @@ public sealed class LocalDbFixture : IAsyncLifetime
         "Data Source=localhost;Initial Catalog=dr-mcp-dbschema;Integrated Security=True;Encrypt=True;Trust Server Certificate=True";
 
     private string? _tempSettingsDir;
+    private string? _publishDir;
 
     public McpClient? Client { get; private set; }
     public string? SkipReason { get; private set; }
@@ -39,7 +41,7 @@ public sealed class LocalDbFixture : IAsyncLifetime
         }
         catch (Exception ex)
         {
-            SkipReason = $"Database dr-mcp-dbschema non raggiungibile: {ex.Message}";
+            SkipReason = $"Database non raggiungibile: {ex.Message}";
             return;
         }
 
@@ -52,14 +54,20 @@ public sealed class LocalDbFixture : IAsyncLifetime
             Path.Combine(_tempSettingsDir, "appsettings.json"),
             JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
 
+        // Pubblica il binario in una cartella temp
         var csproj = ResolveMcpCsprojPath();
         var configuration = typeof(LocalDbFixture).Assembly.Location
             .Contains("Release", StringComparison.OrdinalIgnoreCase) ? "Release" : "Debug";
 
+        _publishDir = await PublishServerAsync(csproj, configuration);
+
+        var exeName = OperatingSystem.IsWindows() ? "dr-mcp-dbschema.exe" : "dr-mcp-dbschema";
+        var exePath = Path.Combine(_publishDir, exeName);
+
         var transport = new StdioClientTransport(new StdioClientTransportOptions
         {
-            Command = "dotnet",
-            Arguments = ["run", "--project", csproj, "--configuration", configuration],
+            Command = exePath,
+            Arguments = [],
             EnvironmentVariables = new Dictionary<string, string?>
             {
                 ["DB_CONNECTION_STRING"] = ConnectionString,
@@ -73,9 +81,7 @@ public sealed class LocalDbFixture : IAsyncLifetime
     public async Task DisposeAsync()
     {
         if (Client is not null)
-        {
             await Client.DisposeAsync();
-        }
 
         // Safety net: elimina IA_TEST se ancora presente (es. test fallito a metà)
         if (SkipReason is null)
@@ -92,16 +98,54 @@ public sealed class LocalDbFixture : IAsyncLifetime
         }
 
         if (_tempSettingsDir is not null && Directory.Exists(_tempSettingsDir))
-        {
             Directory.Delete(_tempSettingsDir, recursive: true);
-        }
+
+        if (_publishDir is not null && Directory.Exists(_publishDir))
+            Directory.Delete(_publishDir, recursive: true);
+    }
+
+    // ---------------------------------------------------------------------------
+
+    private static async Task<string> PublishServerAsync(string csproj, string configuration)
+    {
+        var publishDir = Path.Combine(Path.GetTempPath(), $"mcp-pub-{Guid.NewGuid():N}");
+
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = $"publish \"{csproj}\" -c {configuration} -o \"{publishDir}\" --nologo -v q",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
+            }
+        };
+
+        process.Start();
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+        var stderr = await stderrTask;
+        await stdoutTask;
+
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException($"dotnet publish fallito (exit {process.ExitCode}):\n{stderr}");
+
+        return publishDir;
     }
 
     private static string ResolveMcpCsprojPath()
     {
-        var assemblyDir = Path.GetDirectoryName(typeof(LocalDbFixture).Assembly.Location)!;
-        var repoRoot = Path.GetFullPath(Path.Combine(assemblyDir, "../../../../"));
-        return Path.Combine(repoRoot, "dr-mcp-dbschema.csproj");
+        var dir = Path.GetDirectoryName(typeof(LocalDbFixture).Assembly.Location);
+        while (dir is not null)
+        {
+            var candidate = Path.Combine(dir, "dr-mcp-dbschema.csproj");
+            if (File.Exists(candidate))
+                return candidate;
+            dir = Path.GetDirectoryName(dir);
+        }
+        throw new FileNotFoundException("dr-mcp-dbschema.csproj non trovato risalendo dalla directory del test assembly.");
     }
 }
 
