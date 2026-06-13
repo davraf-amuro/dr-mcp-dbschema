@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore dr-mcp-dbschema.csproj
+
+      - name: Build
+        run: dotnet build dr-mcp-dbschema.csproj --configuration Release --no-restore
+
+      - name: Unit Test
+        run: dotnet test tests/dr-mcp-dbschema.Tests --configuration Release --no-build --verbosity normal
+
+      - name: Estrai versione dal tag
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+
+      - name: Publish linux-x64
+        run: >
+          dotnet publish dr-mcp-dbschema.csproj
+          --configuration Release
+          --runtime linux-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:DebugType=none
+          -p:DebugSymbols=false
+          -p:Version=${{ env.VERSION }}
+          --output publish/linux-x64
+
+      - name: Publish win-x64
+        run: >
+          dotnet publish dr-mcp-dbschema.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:DebugType=none
+          -p:DebugSymbols=false
+          -p:Version=${{ env.VERSION }}
+          --output publish/win-x64
+
+      - name: Create archives and checksums
+        run: |
+          cd publish/win-x64
+          zip -r ../../dr-mcp-dbschema-win-x64.zip .
+          cd ../linux-x64
+          tar czf ../../dr-mcp-dbschema-linux-x64.tar.gz .
+          cd ../..
+          sha256sum dr-mcp-dbschema-win-x64.zip dr-mcp-dbschema-linux-x64.tar.gz > checksums.sha256
+          cat checksums.sha256
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dr-mcp-dbschema-win-x64.zip
+            dr-mcp-dbschema-linux-x64.tar.gz
+            checksums.sha256
+          generate_release_notes: true
