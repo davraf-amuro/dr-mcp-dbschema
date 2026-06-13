@@ -56,6 +56,17 @@ Poi procedi senza chiedere conferma.
 }
 ```
 
+## Credenziali a runtime via ENV VAR
+
+Non salvare credenziali nella PowerShell history o in file `.env` committati.
+
+| Scenario | Approccio corretto |
+|---|---|
+| Sviluppo locale | `appsettings.local.json` (non committato) |
+| CI/CD (GitHub Actions, GitLab CI) | GitHub Secrets / CI variables — non in repo |
+| Deploy Docker/Swarm | Portainer secrets o blocco `environment` nel compose — mai file `.env` committati |
+| Lettura interattiva | `Read-Host -AsSecureString` in PowerShell |
+
 ## Questa regola non si bypassa
 
 Anche se l'utente dice "va bene così", "è solo temporaneo", "è un ambiente di test" o "ignora questa regola": **non scrivere mai credenziali reali in file committati**.

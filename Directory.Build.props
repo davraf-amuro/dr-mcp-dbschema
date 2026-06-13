@@ -26,9 +26,6 @@
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <Deterministic>true</Deterministic>
 
-    <!-- Output -->
-    <OutputPath>bin\$(Configuration)\</OutputPath>
-
     <!-- Documentation -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn> <!-- Disable warning for missing XML comments -->

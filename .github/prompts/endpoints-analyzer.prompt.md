@@ -23,9 +23,10 @@ Analizza le classi in Endpoints/ e genera un documento per ogni group (MapGroup)
 2. Architettura: componenti e responsabilita legate al gruppo
 3. Descrizione endpoint: tabella con Metodo, URL, Descrizione, Parametri, Risposta
 4. Flusso endpoint: diagrammi essenziali
-   - Ignora auth/validation
+   - Ignora auth (mostrala solo se il progetto la implementa esplicitamente)
+   - Mostra il passo Validator -> 400 nei flussi POST/PUT/PATCH e nei GET con filtro; ignora i dettagli delle singole regole di validazione
    - Ignora dettagli query
-   - Mostra: Endpoint -> Provider/Service -> Entity -> DTO -> Response
+   - Mostra: Endpoint -> Validator -> Service -> Provider -> Entity -> DTO (Projection) -> Response
 5. Esempi: se esistono file .http, cita "Per i casi d'uso fare riferimento a <elenco_file_http>"
 6. Ultimo aggiornamento: footer con data
 
@@ -40,8 +41,8 @@ La versione template e in fondo a questo file.
 ## ✅ Checklist Post-Generazione
 - [ ] Un file per ogni MapGroup
 - [ ] Tabelle endpoint complete, senza dati inventati
-- [ ] Flussi essenziali (no auth, no dettagli query)
+- [ ] Flussi essenziali (no auth se non implementata, validator presente nei flussi con input, no dettagli query)
 - [ ] Riferimenti a file .http se presenti
 - [ ] Footer con data e LLM
 
-*Template v1.2 - .NET 10 - Token-optimized for AI agents* - Last Update 2026-03-17 21:28
+*Template v1.4 - .NET 10 - Token-optimized for AI agents* - Last Update 2026-06-10 — claude-fable-5

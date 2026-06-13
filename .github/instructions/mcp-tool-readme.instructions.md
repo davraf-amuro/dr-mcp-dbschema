@@ -79,3 +79,5 @@ Un esempio per ogni tool, nel formato:
 - Date o versioni nel testo
 - Sezioni vuote o placeholder non compilati
 - Dettagli implementativi interni
+
+*Template v1.0 - MCP Tool README - 2026-03-27 — claude-sonnet-4-6*

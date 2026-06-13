@@ -63,7 +63,18 @@ Anche una risposta NO → fermati, completa passo prima di procedere.
 3. Attendi approvazione esplicita utente
 4. Usa `ExitPlanMode` per procedere
 
-Hook `pre_tool_use.py` blocca `Edit`/`Write`/`MultiEdit` automaticamente (validità 30 minuti dall'ultimo `ExitPlanMode`). Percorsi esenti: `.claude/` · `.ai/`
+## Piano obbligatorio su disco
+
+⛔ OGNI task con ≥ 2 operazioni richiede piano persistito su disco **prima** di EnterPlanMode.
+
+Segui `plan-tracking.instructions.md`:
+1. Crea `.ai/plans/<YYYY-MM-DD>-<slug>/plan.md` con obiettivo, scope, fasi, criteri di verifica
+2. Entra in EnterPlanMode e proponi piano all'utente
+3. Durante esecuzione, marca `[x]` ogni fase completata nel piano
+4. A task completato, verifica ogni criterio → aggiorna `Stato: COMPLETATO`
+5. Dichiara: `"Piano [slug] verificato. Tutti i criteri soddisfatti."`
+
+Piano `IN CORSO` in `.ai/plans/` all'avvio sessione → riprendi da ultima fase incompleta.
 
 ## Citazione fonti e modello
 
@@ -84,6 +95,8 @@ Intento utente corrisponde a skill disponibile → **invoca direttamente** senza
 | "promote", "promuovi il branch", "crea la PR verso", "merge su", "porta su master/main/staging" | `/promote-to [target-branch] [--merge] [--delete]` |
 | "audit api", "fai l'audit del backend", "analizza le api", "cerca dead code", "controlla il codice backend" | `/audit-api [focus opzionale]` |
 | "audit frontend", "fai l'audit del fe", "analizza il frontend", "controlla i componenti" | `/audit-fe [focus opzionale]` |
+| "aggiorna il submodule", "aggiorna davraf-guidelines", "aggiorna le linee guida", "get-latest" | `/get-latest` |
+| "modifica testi", "aggiorna commenti", "riscrivi il testo", "correggi il testo", "migliora la descrizione", "aggiorna la descrizione", "modifica il commento" | `/professor [richiesta]` |
 
 Invoca skill → passa tutto contesto utile già in conversazione (codice aperto, domanda originale, file citati) — no chiedere all'utente di ripetere.
 <!-- /davraf-guidelines -->

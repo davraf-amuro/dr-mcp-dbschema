@@ -8,6 +8,20 @@ Regole trasversali valide per qualsiasi task di sviluppo. Le istruzioni modulari
 
 ---
 
+## Fase 0: CHECKLIST PRE-TASK (obbligatoria)
+
+Prima di qualsiasi azione, compila e mostra questa checklist nell'output:
+
+- [ ] Ho letto `.github/copilot-instructions.md`? (cita sezione rilevante)
+- [ ] Ho identificato e letto il file istruzione modulare pertinente? (indica quale)
+- [ ] Ho dichiarato scope, file da modificare e perimetro negativo?
+- [ ] So esattamente quali file creerò/modificherò? (elencali)
+- [ ] Ho verificato che la struttura richiesta non esista già nel progetto?
+
+Anche una sola risposta NO → fermati e completa il passo mancante prima di procedere.
+
+---
+
 ## Fase 1: DICHIARA prima di agire
 
 Prima di scrivere codice o modificare file, dichiara:
@@ -90,4 +104,8 @@ Se dopo la verifica (Fase 3) il file non corrisponde a quanto atteso:
 
 In caso di modifiche a più file: se un file è errato, correggilo **prima** di procedere al successivo.
 
-*Template v1.0 - Token-optimized for AI agents* - Last Update 2026-03-25 — claude-sonnet-4-6
+Se ti accorgi di aver proceduto senza verificare il file precedente:
+→ Fermati. Dichiara: "Ho saltato la verifica di [file]. Torno indietro."
+→ Rileggi il file saltato → verifica → poi riprendi da dove eri.
+
+*Template v1.1 - Token-optimized for AI agents* - Last Update 2026-06-10 — claude-sonnet-4-6

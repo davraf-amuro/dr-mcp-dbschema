@@ -165,6 +165,7 @@ public class SyncOrdersOptions
 - [ ] `AddWindowsService` con `ServiceName` da configurazione
 - [ ] Ogni worker ha `IOptions<T>` dedicato con `IntervalSeconds`
 - [ ] `appsettings.json` con sezione `Workers:<NomeJob>` per ogni worker
+- [ ] Commenti `///` su ogni worker e metodo non banale + inline su operazioni rilevanti (code-organization Regola 6)
 - [ ] Logging strutturato con placeholder, nessuna string interpolation
 - [ ] `appsettings.local.json` aggiunto e ignorato in `.gitignore`
 - [ ] `appsettings.json` contiene solo valori fake/placeholder per dati sensibili, mai credenziali reali

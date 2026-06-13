@@ -130,16 +130,18 @@ Se la risposta è "perché si fa così" → non applicarlo.
 
 ---
 
-## Regola 6 — Commenti minimi sulle funzioni principali
+## Regola 6 — Commenti sulle funzioni e sulle operazioni importanti
 
-Ogni funzione o metodo con logica non ovvia deve avere un commento breve (una riga) che descriva **a cosa serve**.
+Ogni funzione o metodo deve avere un commento breve (una riga) che descriva **a cosa serve**.
 
 - In **C#**: usare `///` (XML doc comment) — visibile in IntelliSense e nei tooltip dell'IDE.
 - In **TypeScript/JavaScript**: usare `//` o `/** */` JSDoc.
 - In **Python**: usare una docstring `"""..."""` su una riga.
 
-**Scope obbligatorio**: funzioni pubbliche, metodi di servizio, factory method, entry point.  
+**Scope obbligatorio**: tutte le funzioni e metodi, pubblici e privati con logica non banale.  
 **Esclusi**: getter/setter banali, wrapper di una riga, override con comportamento ovvio.
+
+> Per progetti con istruzioni modulari (es. `minimal-api-architecture`), la regola 13 di quell'istruzione definisce lo scope specifico dei commenti obbligatori.
 
 ```csharp
 // ✅ C# — XML doc comment visibile in IntelliSense
@@ -167,6 +169,41 @@ def parse_csv(data: str) -> list[list[str]]:
     ...
 ```
 
+### Commenti inline su operazioni importanti
+
+Le operazioni rilevanti **nel corpo del codice** richiedono un commento inline breve che spieghi cosa sta succedendo. Vanno commentate:
+
+- Chiamate a provider esterni (email, SMS, HTTP, push, ecc.)
+- Lettura o scrittura su database
+- Lettura o scrittura su cache
+- Autenticazione / autorizzazione critica
+- Parsing o serializzazione non ovvio
+
+```csharp
+// ✅ C# — commenti su operazioni rilevanti nel corpo del metodo
+// Chiamo il provider email esterno
+await emailProvider.SendAsync(message);
+
+// Leggo da DB l'ordine corrente
+var order = await repository.GetByIdAsync(orderId);
+
+// Scrivo in cache il risultato per 5 minuti
+await cache.SetAsync(key, result, TimeSpan.FromMinutes(5));
+
+// Verifico permessi prima di procedere
+if (!await authService.CanAccessAsync(user, resource))
+    return Results.Forbid();
+```
+
+```typescript
+// ✅ TypeScript — commenti su operazioni rilevanti
+// Chiamo il provider SMS
+await smsProvider.send(phoneNumber, message);
+
+// Leggo da DB i prodotti attivi
+const products = await productRepo.findActive();
+```
+
 ---
 
 ## ✅ Checklist pre-commit
@@ -177,8 +214,9 @@ def parse_csv(data: str) -> list[list[str]]:
 - [ ] Ci sono metodi privati che potrebbero essere estratti in un servizio/helper?
 - [ ] Il pattern scelto è motivato da un problema concreto, non da abitudine?
 - [ ] Le dipendenze sono iniettate, non istanziate internamente?
-- [ ] Le funzioni principali hanno un commento `///` (C#) o equivalente?
+- [ ] Ogni funzione/metodo ha un commento `///` (C#) o equivalente?
+- [ ] Le operazioni importanti nel corpo (chiamata provider, lettura/scrittura DB, cache, auth) hanno un commento inline?
 
 ---
 
-*Istruzione v1.1 - Code Organization - 2026-04-17 — claude-sonnet-4-6*
+*Istruzione v1.2 - Code Organization - 2026-05-29 — claude-sonnet-4-6*

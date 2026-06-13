@@ -25,7 +25,7 @@ Crea o aggiorna README.md usando solo dati presenti nel repository. Non inventar
 Usa data e ora correnti (Get-Date -Format "yyyy-MM-dd HH:mm"):
 ```markdown
 ---
-*Card generata il: yyyy-MM-dd HH:mm | Versione template: x.x | LLM: [indicare il modello usato]*
+*Revisione v{N} — {YYYY-MM-DD HH:MM} — {modello-llm}*
 ```
 La versione template e in fondo a questo file.
 

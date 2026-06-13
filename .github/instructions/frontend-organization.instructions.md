@@ -260,6 +260,10 @@ public string Status { get; set; }
 
 ---
 
+## Adattamento ad altri framework
+
+Le **Regole 1–2** (un componente = un file, generico vs specifico) e la struttura `shared/` vs `[domain]/` si applicano a qualsiasi framework. Le strutture cartelle delle **Regole 3–4** sono specifiche per Vue.js e WPF/MVVM. Per React, Angular, Blazor o altri: mantieni i principi di separazione, adatta i nomi cartella alle convenzioni del framework.
+
 ## ✅ Checklist pre-commit
 
 - [ ] Ogni componente/ViewModel/composable ha il suo file dedicato?
