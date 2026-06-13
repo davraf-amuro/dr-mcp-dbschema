@@ -173,43 +173,7 @@ var state = new ConnectionState
     ScannedFiles = appsettingsFiles
 };
 
-// Auto-selezione 1: se c'è una sola connection string
-if (available.Count == 1)
-{
-    var (name, cs) = available.First();
-    state.ActiveName = name;
-    state.ActiveConnectionString = cs;
-    Console.Error.WriteLine($"[dr-mcp-dbschema] auto-selezione connessione: '{name}'");
-}
-
-// Auto-selezione 2: per ambiente (ASPNETCORE_ENVIRONMENT / DOTNET_ENVIRONMENT)
-// Cerca la CS che proviene da appsettings.{env}.json e la seleziona silentemente
-var aspEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
-          ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
-
-if (state.ActiveName is null && aspEnv is { Length: > 0 })
-{
-    var envFileName = $"appsettings.{aspEnv}.json";
-    var envCandidates = availableSources
-        .Where(kv => Path.GetFileName(kv.Value).Equals(envFileName, StringComparison.OrdinalIgnoreCase))
-        .Select(kv => kv.Key)
-        .ToList();
-
-    if (envCandidates.Count == 1)
-    {
-        state.ActiveName = envCandidates[0];
-        state.ActiveConnectionString = available[envCandidates[0]];
-        Console.Error.WriteLine($"[dr-mcp-dbschema] auto-selezione per ambiente '{aspEnv}': '{state.ActiveName}' (da {envFileName})");
-    }
-    else if (envCandidates.Count > 1)
-    {
-        Console.Error.WriteLine($"[dr-mcp-dbschema] ambiente '{aspEnv}' trovato ma {envCandidates.Count} CS corrispondenti ({string.Join(", ", envCandidates)}) — nessuna auto-selezione, usa UseConnection");
-    }
-    else
-    {
-        Console.Error.WriteLine($"[dr-mcp-dbschema] ambiente '{aspEnv}' rilevato ma nessuna CS da {envFileName} — nessuna auto-selezione");
-    }
-}
+Console.Error.WriteLine($"[dr-mcp-dbschema] connessione attiva: nessuna — usa GetActiveConnection o qualsiasi tool per la selezione guidata");
 
 var tokenStore = new DdlTokenStore();
 

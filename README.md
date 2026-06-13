@@ -4,6 +4,13 @@ Server MCP per l'ispezione e la modifica dello schema di un database SQL Server.
 
 Permette all'assistente IA di leggere la struttura di tabelle e viste ed eseguire operazioni DDL (CREATE TABLE, ALTER TABLE, DROP TABLE) con un flusso di conferma esplicita a due fasi.
 
+## Documentazione
+
+| File | Contenuto |
+|------|-----------|
+| [docs/card-dr-mcp-dbschema.md](docs/card-dr-mcp-dbschema.md) | Scheda riassuntiva: stack, tool esposti, configurazione |
+| [docs/onboarding.md](docs/onboarding.md) | Guida per developer senior: struttura codice, convenzioni, flusso di lavoro |
+
 ## Client supportati
 
 | Client | File di configurazione | Chiave JSON |
@@ -15,13 +22,20 @@ Permette all'assistente IA di leggere la struttura di tabelle e viste ed eseguir
 
 ## Tool disponibili
 
+### Gestione connessione
+
+| Tool | Parametri | Descrizione |
+|------|-----------|-------------|
+| `list_connections` | — | Elenca le connection string trovate negli `appsettings*.json` del progetto |
+| `use_connection` | `name` | Seleziona una connessione di progetto |
+| `use_custom_connection` | `connectionString` | Imposta una connection string custom (non in appsettings). Valida solo per la sessione corrente, non loggata né salvata. |
+| `get_active_connection` | — | Mostra la connessione attiva (mascherata) e l'elenco delle disponibili |
+
 ### Ispezione schema (read-only)
 
 | Tool | Parametri | Descrizione |
 |------|-----------|-------------|
-| `list_connections` | -- | Elenca le connection string trovate negli `appsettings*.json` del progetto |
-| `use_connection` | `name` | Seleziona quale connection string usare |
-| `list_views` | -- | Elenca tutte le tabelle e le viste del database |
+| `list_views` | — | Elenca tutte le tabelle e le viste del database |
 | `get_view_definition` | `viewName` | Restituisce il codice SQL (`CREATE VIEW`) di una vista |
 | `get_view_columns` | `viewName` | Restituisce le colonne di una tabella o vista (nome, tipo, nullable) |
 
@@ -95,24 +109,51 @@ Da quella radice scansiona ricorsivamente tutti gli `appsettings*.json` (esclude
 
 `appsettings.local.json` è già escluso dal `.gitignore` del progetto ed è il posto giusto per connection string locali che non devono essere committate.
 
-- Se trova **una sola** connection string, la seleziona automaticamente
-- Se ne trova **più di una**, richiede di scegliere tramite `UseConnection`
+### Selezione della connessione
 
-Override esplicito della connection string (due modalità, in ordine di priorità):
+Il tool non seleziona automaticamente la connessione all'avvio. Al primo tool call che richiede un database attivo, se nessuna connessione è stata selezionata, il tool restituisce l'elenco delle connessioni disponibili e le istruzioni per selezionarne una.
+
+```
+get_active_connection          ← vedi connessione attiva o ottieni la lista
+use_connection("MioDb")        ← seleziona da progetto
+use_custom_connection("...")   ← inserisci CS custom (solo sessione, non loggata)
+```
+
+La connessione rimane attiva per tutta la sessione finché l'utente non la cambia esplicitamente.
+
+Override esplicito via variabile d'ambiente (aggiunta a quelle di progetto, non auto-attivata):
 
 ```powershell
-# 1 — argomento da riga di comando (priorità massima)
-dotnet run --project tools/dr-mcp-dbschema/dr-mcp-dbschema.csproj -- "Server=...;Database=...;..."
-
-# 2 — variabile d'ambiente
 $env:DB_CONNECTION_STRING = "Server=...;Database=...;..."
-dotnet run --project tools/dr-mcp-dbschema/dr-mcp-dbschema.csproj
 ```
 
 Override della radice di scansione (es. progetto senza `src/`):
 
 ```powershell
 $env:DB_SCHEMA_ROOT = "C:\percorso\al\progetto"
+```
+
+### Log su file
+
+Per default il tool scrive solo su stderr (visibile nella console del client MCP). Per abilitare il log su file:
+
+```powershell
+# Abilita log su file (default: %TEMP%/dr-mcp-dbschema/dr-mcp-dbschema.log)
+$env:DR_MCP_ENABLE_LOG = "true"
+
+# Override percorso file di log
+$env:DR_MCP_LOG_FILE = "C:\percorso\al\file.log"
+```
+
+In alternativa, aggiungi la sezione `Logging` all'`appsettings.local.json`:
+
+```json
+{
+  "Logging": {
+    "EnableFileLog": true,
+    "LogFile": "C:\\percorso\\al\\file.log"
+  }
+}
 ```
 
 ### Abilitare le operazioni DDL
@@ -172,6 +213,7 @@ Lo script in sequenza:
 3. Estrae il binario in `tools/dr-mcp-dbschema/`
 4. Esegue `dr-mcp-dbschema.exe --version` per verificare che il binario risponda correttamente
 5. Crea o aggiorna il file di configurazione del client specificato
+6. Crea `appsettings.local.json` nella directory del progetto (o in `src/`) con il template delle sezioni `ConnectionStrings`, `Ddl` e `Logging` — se già presente, aggiunge solo le sezioni mancanti
 
 Per installare una versione specifica:
 
@@ -196,7 +238,6 @@ Commetti invece i file `.example` come riferimento per il team. I file example s
 
 | File committato | Usato da |
 |-----------------|---------|
-| `.mcp.example.json` | Claude Code / Claude Desktop |
 | `.vscode/mcp.json.example` | VS Code + GitHub Copilot |
 | `.cursor/mcp.json.example` | Cursor |
 
@@ -233,8 +274,9 @@ Invoke-Expression "& { $(irm https://raw.githubusercontent.com/davraf-amuro/dr-m
 ### Ispezione schema
 
 ```
-list_connections
-use_connection -- name: "MioDb"
+get_active_connection                           -- vedi connessione attiva o lista disponibili
+use_connection -- name: "MioDb"                -- seleziona connessione di progetto
+use_custom_connection -- connectionString: "Server=...;Database=...;..."  -- CS custom (solo sessione)
 list_views
 get_view_definition -- viewName: "vw_Log106"
 get_view_columns -- viewName: "dbo.Utenti"
@@ -248,18 +290,17 @@ preview_create -- sql: "CREATE TABLE dbo.Test (Id INT PRIMARY KEY, Nome NVARCHAR
 
 Output:
 ```
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!  ATTENZIONE -- OPERAZIONE DDL -- RICHIESTA CONFERMA   !!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-risk_level  : DANGER
-operazione  : CREATE TABLE
-tabella     : dbo.Test
-database    : MioDb
-token       : A3F9C12B4E7D
-scade tra   : 60 secondi
-...
-!! Per procedere: execute_create("A3F9C12B4E7D")
+STATUS: PENDING_CONFIRM
+CODE: DDL_PREVIEW
+risk_level: DANGER
+operation: CREATE_TABLE
+table: dbo.Test
+database: MioDb
+token: A3F9C12B4E7D
+expires_in: 60s
+action: ExecuteCreate("A3F9C12B4E7D") per procedere, ignora per annullare
+---
+CREATE TABLE dbo.Test (Id INT PRIMARY KEY, Nome NVARCHAR(100) NOT NULL)
 ```
 
 ```
@@ -281,26 +322,22 @@ preview_drop -- tableName: "dbo.Test"
 
 Output:
 ```
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!  ATTENZIONE -- OPERAZIONE DDL -- RICHIESTA CONFERMA   !!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+STATUS: PENDING_CONFIRM
+CODE: DDL_PREVIEW
+risk_level: DANGER
+operation: DROP_TABLE
+table: dbo.Test
+database: MioDb
+token: B7E2D45F9C1A
+expires_in: 60s
+action: ExecuteDrop("B7E2D45F9C1A") per procedere, ignora per annullare
+---
+ATTENZIONE: questa operazione DISTRUGGE la tabella e tutti i suoi dati.
 
-risk_level  : DANGER
-operazione  : DROP TABLE
-tabella     : dbo.Test
-database    : MioDb
-token       : B7E2D45F9C1A
-scade tra   : 60 secondi
-
-Schema che verrà ELIMINATO:
-------------------------------------------------------------
+Schema che verrà eliminato:
 pos | column | type | max_len | nullable
 1 | Id | int | - | NO
 2 | Nome | nvarchar | 100 | NO
-------------------------------------------------------------
-
-!! ATTENZIONE: questa operazione DISTRUGGE la tabella e tutti i suoi dati.
-!! Per procedere: execute_drop("B7E2D45F9C1A")
 ```
 
 ```
@@ -500,7 +537,7 @@ dotnet test tests/DrMcpDbSchema.IntegrationTests/ --filter "Category!=LocalDB"
 
 ---
 
-*Last update: 2026-05-04 — dr-mcp-dbschema v0.2.2*
+*Last update: 2026-06-13 — dr-mcp-dbschema v0.3.0*
 
 ---
 
@@ -514,12 +551,13 @@ Il tool non ha trovato alcuna `ConnectionStrings` nei file `appsettings*.json` s
 2. Verifica che `DB_SCHEMA_ROOT` (o `src/`) punti alla cartella corretta del progetto
 3. In alternativa, imposta la variabile `DB_CONNECTION_STRING` o passa la CS come `args[0]`
 
-### `[NO_ACTIVE_CONNECTION]` — più connection string, nessuna selezionata
+### `[NO_ACTIVE_CONNECTION]` — nessuna connessione selezionata
 
-Si verifica quando sono disponibili più CS e nessuna auto-selezione è stata attivata.
+Si verifica all'avvio o dopo una sessione senza selezione esplicita.
 
-- Usa `UseConnection("<nome>")` per selezionare esplicitamente
-- Oppure imposta `ASPNETCORE_ENVIRONMENT` al nome dell'ambiente (es. `Development`): il tool selezionerà automaticamente la CS proveniente da `appsettings.Development.json`
+- Usa `GetActiveConnection` per vedere le connessioni disponibili e ricevere le istruzioni
+- Usa `UseConnection("<nome>")` per selezionare una connessione di progetto
+- Usa `UseCustomConnection("<connectionString>")` per inserire una CS custom (non presente negli appsettings)
 
 ### `Token non valido o scaduto`
 

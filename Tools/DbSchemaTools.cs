@@ -94,6 +94,34 @@ public class DbSchemaTools(ConnectionState state, DdlSettings ddlSettings, DdlTo
         return $"Connessione '{name}' attiva.";
     }
 
+    [McpServerTool, Description("Imposta una connection string personalizzata non presente nel progetto. Valida solo per la sessione corrente, non viene salvata ne' loggata.")]
+    public string UseCustomConnection(
+        [Description("Connection string completa (es. Server=...;Database=...;User Id=...;Password=...)")] string connectionString)
+    {
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return "[INVALID_INPUT] Connection string vuota.";
+        }
+
+        state.ActiveName = "(custom)";
+        state.ActiveConnectionString = connectionString;
+        logger.LogInformation("Connessione custom impostata (valore non loggato)");
+        var masked = DbSchemaHelpers.MaskConnectionString(connectionString);
+        return $"Connessione custom attiva: {masked}\nNon verra' salvata ne' loggata. Usa UseConnection per tornare a una connessione di progetto.";
+    }
+
+    [McpServerTool, Description("Mostra la connessione attiva (mascherata) e l'elenco di quelle disponibili")]
+    public string GetActiveConnection()
+    {
+        if (state.ActiveConnectionString is null)
+        {
+            return NoConnectionMessage();
+        }
+
+        var masked = DbSchemaHelpers.MaskConnectionString(state.ActiveConnectionString);
+        return $"active: {state.ActiveName} — {masked}\n\n{ListConnections()}";
+    }
+
     [McpServerTool, Description("Lista tutte le viste e le tabelle presenti nel database")]
     public async Task<string> ListViews(CancellationToken ct = default)
     {
@@ -575,12 +603,32 @@ public class DbSchemaTools(ConnectionState state, DdlSettings ddlSettings, DdlTo
 
     private string NoConnectionMessage()
     {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("[NO_ACTIVE_CONNECTION] Nessuna connessione attiva.");
+        sb.AppendLine();
+
         if (state.Available.Count == 0)
         {
-            return "[NO_CONNECTIONS_CONFIGURED] Nessuna connection string configurata. Aggiungi ConnectionStrings in appsettings.json o imposta DB_CONNECTION_STRING. Usa Diagnostics() per verificare cosa ha trovato il tool.";
+            sb.AppendLine("Nessuna ConnectionStrings trovata negli appsettings. Puoi:");
+            sb.AppendLine("  UseCustomConnection(\"Server=...;Database=...;\")  — connection string custom (solo sessione)");
+            sb.AppendLine("  Diagnostics()  — verifica cosa ha trovato il tool");
+        }
+        else
+        {
+            sb.AppendLine("Connessioni disponibili nel progetto:");
+            foreach (var kvp in state.Available)
+            {
+                var src = state.AvailableSources.TryGetValue(kvp.Key, out var f)
+                    ? $" [{Path.GetFileName(f)}]" : "";
+                sb.AppendLine($"  • {kvp.Key}{src}");
+            }
+            sb.AppendLine();
+            sb.AppendLine("Seleziona:");
+            sb.AppendLine($"  UseConnection(\"{state.Available.Keys.First()}\")  — usa connessione di progetto");
+            sb.AppendLine("  UseCustomConnection(\"...\")  — inserisci connection string custom (solo sessione)");
         }
 
-        return $"[NO_ACTIVE_CONNECTION] Nessuna connessione attiva. Disponibili: {string.Join(", ", state.Available.Keys)}. Usa UseConnection per selezionarne una.";
+        return sb.ToString().TrimEnd();
     }
 
     private static string DdlDisabledMessage(string operation, string flag) =>
