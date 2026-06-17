@@ -7,7 +7,7 @@
 - **Repository:** https://github.com/davraf-amuro/dr-mcp-dbschema
 - **Tipo Applicazione:** MCP Server — eseguibile console .NET 10 self-contained, trasporto stdio
 - **Pattern Architetturale:** Tool distribution — binario distribuito nei progetti ospiti tramite `setup.ps1`; si integra con qualsiasi client MCP (Claude Code, VS Code Copilot, Cursor)
-- **Versione Corrente:** 0.4.0
+- **Versione Corrente:** 0.4.1
 - **Owner/Team:** davraf
 - **Referente:** davide 'davraf' raffagli
 - **Contatto Supporto:** Da verificare

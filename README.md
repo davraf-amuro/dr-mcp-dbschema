@@ -8,7 +8,7 @@ Permette all'assistente IA di leggere la struttura di tabelle e viste ed eseguir
 
 | File | Contenuto |
 |------|-----------|
-| [docs/card-dr-mcp-dbschema.md](docs/card-dr-mcp-dbschema.md) | Scheda riassuntiva: stack, tool esposti, configurazione — v0.4.0 |
+| [docs/card-dr-mcp-dbschema.md](docs/card-dr-mcp-dbschema.md) | Scheda riassuntiva: stack, tool esposti, configurazione — v0.4.1 |
 | [docs/onboarding.md](docs/onboarding.md) | Guida per developer senior: struttura codice, convenzioni, flusso di lavoro |
 
 ## Client supportati
@@ -546,7 +546,7 @@ dotnet test tests/DrMcpDbSchema.IntegrationTests/ --filter "Category!=LocalDB"
 
 ---
 
-*Last update: 2026-06-17 — dr-mcp-dbschema v0.4.0*
+*Last update: 2026-06-17 — dr-mcp-dbschema v0.4.1*
 
 ---
 
