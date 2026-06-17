@@ -8,7 +8,7 @@ Permette all'assistente IA di leggere la struttura di tabelle e viste ed eseguir
 
 | File | Contenuto |
 |------|-----------|
-| [docs/card-dr-mcp-dbschema.md](docs/card-dr-mcp-dbschema.md) | Scheda riassuntiva: stack, tool esposti, configurazione |
+| [docs/card-dr-mcp-dbschema.md](docs/card-dr-mcp-dbschema.md) | Scheda riassuntiva: stack, tool esposti, configurazione — v0.4.0 |
 | [docs/onboarding.md](docs/onboarding.md) | Guida per developer senior: struttura codice, convenzioni, flusso di lavoro |
 
 ## Client supportati
@@ -26,7 +26,7 @@ Permette all'assistente IA di leggere la struttura di tabelle e viste ed eseguir
 
 | Tool | Parametri | Descrizione |
 |------|-----------|-------------|
-| `list_connections` | — | Elenca le connection string trovate negli `appsettings*.json` del progetto |
+| `list_connections` | — | Elenca le connection string trovate negli `appsettings*.json` con griglia numerata (1, 2, 3…) per selezione rapida |
 | `use_connection` | `name` | Seleziona una connessione di progetto |
 | `use_custom_connection` | `connectionString` | Imposta una connection string custom (non in appsettings). Valida solo per la sessione corrente, non loggata né salvata. |
 | `get_active_connection` | — | Mostra la connessione attiva (mascherata) e l'elenco delle disponibili |
@@ -112,6 +112,15 @@ Da quella radice scansiona ricorsivamente tutti gli `appsettings*.json` (esclude
 ### Selezione della connessione
 
 Il tool non seleziona automaticamente la connessione all'avvio. Al primo tool call che richiede un database attivo, se nessuna connessione è stata selezionata, il tool restituisce l'elenco delle connessioni disponibili e le istruzioni per selezionarne una.
+
+`list_connections` restituisce una griglia numerata per selezione rapida:
+
+```
+* 1. DefaultConnection (attiva)  [appsettings.json]
+  2. Staging  [appsettings.Staging.json]
+
+Rispondi con il numero oppure usa UseConnection("<nome>") direttamente.
+```
 
 ```
 get_active_connection          ← vedi connessione attiva o ottieni la lista
@@ -537,7 +546,7 @@ dotnet test tests/DrMcpDbSchema.IntegrationTests/ --filter "Category!=LocalDB"
 
 ---
 
-*Last update: 2026-06-13 — dr-mcp-dbschema v0.3.0*
+*Last update: 2026-06-17 — dr-mcp-dbschema v0.4.0*
 
 ---
 

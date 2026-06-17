@@ -7,7 +7,7 @@
 - **Repository:** https://github.com/davraf-amuro/dr-mcp-dbschema
 - **Tipo Applicazione:** MCP Server — eseguibile console .NET 10 self-contained, trasporto stdio
 - **Pattern Architetturale:** Tool distribution — binario distribuito nei progetti ospiti tramite `setup.ps1`; si integra con qualsiasi client MCP (Claude Code, VS Code Copilot, Cursor)
-- **Versione Corrente:** 0.3.0
+- **Versione Corrente:** 0.4.0
 - **Owner/Team:** davraf
 - **Referente:** davide 'davraf' raffagli
 - **Contatto Supporto:** Da verificare
@@ -53,7 +53,7 @@ Il tool non ha un database proprio. Legge le connection string dal progetto ospi
 
 | Tool | Parametri | Descrizione |
 |------|-----------|-------------|
-| `list_connections` | — | Elenca le connection string trovate negli `appsettings*.json` |
+| `list_connections` | — | Elenca le connection string trovate negli `appsettings*.json` con griglia numerata (1, 2, 3…) per selezione rapida |
 | `use_connection` | `name` | Seleziona una connessione di progetto |
 | `use_custom_connection` | `connectionString` | Imposta una CS custom (solo sessione, non loggata) |
 | `get_active_connection` | — | Mostra connessione attiva e lista disponibili |
@@ -87,4 +87,4 @@ Il tool non ha un database proprio. Legge le connection string dal progetto ospi
 
 ---
 
-*Revisione v1.0 — 2026-06-13 15:00 — claude-sonnet-4-6*
+*Revisione v1.1 — 2026-06-17 00:00 — claude-sonnet-4-6*

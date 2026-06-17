@@ -67,17 +67,18 @@ public class DbSchemaTools(ConnectionState state, DdlSettings ddlSettings, DdlTo
             return "[NO_CONNECTIONS_CONFIGURED] Nessuna connection string trovata. Aggiungi una sezione ConnectionStrings in appsettings.json oppure imposta la variabile d'ambiente DB_CONNECTION_STRING.";
         }
 
-        var lines = state.Available.Keys.Select(name =>
+        var lines = state.Available.Keys.Select((name, i) =>
         {
             var active = name == state.ActiveName ? " (attiva)" : "";
             var source = state.AvailableSources.TryGetValue(name, out var f)
                 ? $"  [{Path.GetFileName(f)}]"
                 : "";
             var prefix = name == state.ActiveName ? "*" : " ";
-            return $"{prefix} {name}{active}{source}";
+            return $"{prefix} {i + 1}. {name}{active}{source}";
         });
 
-        return string.Join("\n", lines);
+        return string.Join("\n", lines)
+            + "\n\nRispondi con il numero oppure usa UseConnection(\"<nome>\") direttamente.";
     }
 
     [McpServerTool, Description("Seleziona quale connection string usare per le query successive")]
