@@ -79,12 +79,16 @@ dr-mcp-dbschema/
 │   ├── DdlKind.cs              # Enum Create/Alter/Drop
 │   └── PendingDdl.cs           # Dati operazione DDL in attesa di conferma (token, SQL, scadenza)
 ├── Tools/
-│   └── DbSchemaTools.cs        # Tutti i tool MCP (14 tool, classe con [McpServerToolType])
+│   └── DbSchemaTools.cs        # Tutti i tool MCP (classe con [McpServerToolType])
 ├── Services/
 │   └── DdlTokenStore.cs        # Store token monouso (ConcurrentDictionary, TTL 60s)
 ├── Helpers/
 │   └── DbSchemaHelpers.cs      # ExtractObjectName, AnalyzeAlterRisk, MaskConnectionString
 └── tests/
+    ├── dr-mcp-dbschema.Tests/
+    │   ├── DbSchemaHelpersTests.cs     # Unit test helpers (ExtractObjectName, AnalyzeAlterRisk, MaskConnectionString)
+    │   ├── DdlTokenStoreTests.cs       # Unit test token store
+    │   └── ListConnectionsTests.cs     # Unit test output griglia numerata ListConnections
     └── DrMcpDbSchema.IntegrationTests/
         ├── McpEnvironmentFixture.cs    # Testcontainers: avvia SQL Server + server MCP
         ├── FullCycleTests.cs           # 12 step su DB isolato
@@ -160,4 +164,4 @@ Riferimento completo: `.github/instructions/sensitive-data.instructions.md`
 
 ---
 
-*Revisione v1.0 — 2026-06-13 15:00 — claude-sonnet-4-6*
+*Revisione v1.1 — 2026-06-17 00:00 — claude-sonnet-4-6*
