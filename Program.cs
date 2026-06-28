@@ -98,6 +98,11 @@ foreach (var file in appsettingsFiles)
     var ddlSection = config.GetSection("Ddl");
     if (ddlSection.Exists())
     {
+        if (bool.TryParse(ddlSection["AllowSelect"], out var allowSelect))
+        {
+            ddlSettings.AllowSelect = allowSelect;
+        }
+
         if (bool.TryParse(ddlSection["AllowCreate"], out var allowCreate))
         {
             ddlSettings.AllowCreate = allowCreate;

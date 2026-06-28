@@ -53,6 +53,80 @@ internal static class DbSchemaHelpers
         return (level, warnings.Count > 0 ? string.Join("\n", warnings) : "- Nessuna operazione distruttiva rilevata.");
     }
 
+    /// <summary>
+    /// Parole chiave vietate in una query read-only. La presenza di una qualsiasi (word-boundary,
+    /// case-insensitive) rende lo statement non eseguibile da <c>RunSelect</c>.
+    /// <c>INTO</c> blocca <c>SELECT ... INTO</c> (creazione tabella); <c>sp_</c>/<c>xp_</c> bloccano le stored procedure.
+    /// </summary>
+    private static readonly string[] _forbiddenSelectKeywords =
+    [
+        "INSERT", "UPDATE", "DELETE", "MERGE", "DROP", "CREATE", "ALTER",
+        "TRUNCATE", "EXEC", "EXECUTE", "GRANT", "REVOKE", "DENY", "INTO",
+        "BACKUP", "RESTORE", "sp_", "xp_"
+    ];
+
+    /// <summary>
+    /// Verifica che lo statement sia una query di sola lettura (SELECT o CTE WITH ... SELECT),
+    /// con un solo statement e senza parole chiave di scrittura/DDL/esecuzione.
+    /// Difesa in profondità: whitelist del primo token + blacklist keyword + blocco multi-statement.
+    /// </summary>
+    /// <param name="sql">Statement SQL da verificare.</param>
+    /// <param name="reason">Motivo del rifiuto se il metodo ritorna <c>false</c>; stringa vuota se valido.</param>
+    /// <returns><c>true</c> se lo statement è una SELECT read-only sicura.</returns>
+    internal static bool IsReadOnlySelect(string sql, out string reason)
+    {
+        if (string.IsNullOrWhiteSpace(sql))
+        {
+            reason = "Statement vuoto.";
+            return false;
+        }
+
+        // Rimuove i ';' finali (con eventuali spazi), poi verifica che non ne restino di interni
+        var trimmed = sql.Trim().TrimEnd(';', ' ', '\t', '\r', '\n');
+        if (trimmed.Contains(';'))
+        {
+            reason = "Statement multipli non consentiti: usa una sola query SELECT.";
+            return false;
+        }
+
+        // Il primo token deve essere SELECT o WITH (CTE)
+        var firstToken = System.Text.RegularExpressions.Regex.Match(trimmed, @"^\s*([A-Za-z_]+)");
+        var keyword = firstToken.Success ? firstToken.Groups[1].Value.ToUpperInvariant() : string.Empty;
+        if (keyword is not ("SELECT" or "WITH"))
+        {
+            reason = "Solo query SELECT (o CTE WITH ... SELECT) sono consentite in lettura.";
+            return false;
+        }
+
+        foreach (var forbidden in _forbiddenSelectKeywords)
+        {
+            // sp_/xp_ sono prefissi: match come inizio identificatore; gli altri come parola intera
+            var pattern = forbidden.EndsWith('_')
+                ? $@"\b{forbidden}\w*"
+                : $@"\b{System.Text.RegularExpressions.Regex.Escape(forbidden)}\b";
+
+            if (System.Text.RegularExpressions.Regex.IsMatch(trimmed, pattern,
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            {
+                reason = $"Parola chiave non consentita in una query read-only: '{forbidden}'.";
+                return false;
+            }
+        }
+
+        reason = string.Empty;
+        return true;
+    }
+
+    /// <summary>
+    /// Restituisce lo statement con ogni riga prefissata da <c>-- </c>, così da non poter essere
+    /// eseguito immediatamente dal chiamante. Gestisce sia separatori <c>\r\n</c> sia <c>\n</c>.
+    /// </summary>
+    internal static string CommentOutSql(string sql)
+    {
+        var lines = (sql ?? string.Empty).Replace("\r\n", "\n").Split('\n');
+        return string.Join("\n", lines.Select(line => $"-- {line}"));
+    }
+
     /// <summary>Maschera la password in una connection string per l'output diagnostico.</summary>
     internal static string MaskConnectionString(string cs) =>
         System.Text.RegularExpressions.Regex.Replace(

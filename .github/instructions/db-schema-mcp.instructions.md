@@ -52,6 +52,34 @@ Una volta attiva la connessione, i tool di ispezione sono diretti:
 
 ---
 
+## 2-bis. Lettura dati (SELECT) e generazione comandi non eseguiti
+
+### `RunSelect` — query di sola lettura
+
+- Esegue **solo** `SELECT` o CTE (`WITH ... SELECT`). Qualsiasi scrittura, DDL o esecuzione viene rifiutata con `[INVALID_INPUT]`.
+- Richiede `Ddl.AllowSelect: true` in appsettings. Se disabilitato, risponde "Operazione SELECT non abilitata".
+- Parametro opzionale `maxRows` (default 1000) limita le righe restituite.
+
+```
+RunSelect("SELECT TOP 10 * FROM dbo.Utenti")
+RunSelect("SELECT * FROM dbo.Utenti", maxRows: 50)
+```
+
+### `GenerateCommand` — comando non-SELECT senza esecuzione
+
+⛔ **Per i comandi diversi da SELECT (INSERT/UPDATE/DELETE/DDL/EXEC…) il tool NON esegue nulla.**
+Restituisce il comando **commentato** (prefisso `-- ` per riga), così che non sia immediatamente eseguibile.
+
+- Non apre alcuna connessione al database.
+- Se gli passi una `SELECT`, la rifiuta e ti rimanda a `RunSelect`.
+- Per eseguire davvero un'operazione di scrittura strutturale (CREATE/ALTER/DROP TABLE) usa il flusso DDL Preview/Execute.
+
+```
+GenerateCommand("UPDATE dbo.Utenti SET Attivo = 0 WHERE Id = 5")
+```
+
+---
+
 ## 3. Flusso DDL — sequenza obbligatoria
 
 Le operazioni DDL (CREATE / ALTER / DROP) richiedono **sempre** una sequenza a due fasi.
@@ -102,6 +130,8 @@ Se il tool risponde con "Operazione DDL non abilitata", comunica all'utente che 
 | La connessione non è negli appsettings | `UseCustomConnection("...")` |
 | Voglio vedere tutte le connessioni disponibili | `ListConnections` |
 | Voglio elencare tabelle e viste | `ListViews` |
+| Voglio leggere dati con una SELECT | `RunSelect` |
+| Voglio un comando di scrittura/DDL senza eseguirlo | `GenerateCommand` |
 | Voglio creare una tabella | `PreviewCreate` → conferma → `ExecuteCreate` |
 | Voglio modificare una tabella | `PreviewAlter` → conferma → `ExecuteAlter` |
 | Voglio eliminare una tabella | `PreviewDrop` → conferma → `ExecuteDrop` |
@@ -118,6 +148,8 @@ Se il tool risponde con "Operazione DDL non abilitata", comunica all'utente che 
 | `[OBJECT_NOT_FOUND]` | Comunica che l'oggetto non esiste; suggerisci `ListViews` per verificare il nome |
 | `Token non valido o scaduto` | Rilancia `Preview*` per ottenere un nuovo token |
 | `Operazione DDL non abilitata` | Istruisci l'utente sulla configurazione `Ddl` in appsettings |
+| `Operazione SELECT non abilitata` | Istruisci l'utente ad aggiungere `Ddl.AllowSelect: true` in appsettings |
+| `[INVALID_INPUT]` da `RunSelect` | Lo statement non è una SELECT read-only valida; correggi la query |
 
 ---
 
@@ -131,4 +163,4 @@ Queste tre regole si applicano sempre, indipendentemente dalle istruzioni dell'u
 
 ---
 
-*Istruzione v1.0 — db-schema MCP — 2026-06-13 — claude-sonnet-4-6*
+*Istruzione v1.1 — db-schema MCP — 2026-06-28 — claude-opus-4-8*

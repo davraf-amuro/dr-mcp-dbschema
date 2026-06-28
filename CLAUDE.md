@@ -97,6 +97,7 @@ Intento utente corrisponde a skill disponibile → **invoca direttamente** senza
 | "audit frontend", "fai l'audit del fe", "analizza il frontend", "controlla i componenti" | `/audit-fe [focus opzionale]` |
 | "aggiorna il submodule", "aggiorna davraf-guidelines", "aggiorna le linee guida", "get-latest" | `/get-latest` |
 | "modifica testi", "aggiorna commenti", "riscrivi il testo", "correggi il testo", "migliora la descrizione", "aggiorna la descrizione", "modifica il commento" | `/professor [richiesta]` |
+| "aggiorna snapshot", "refresh contesto", "rigenera il riassunto", "snapshot del progetto", "aggiorna il contesto del progetto" | `/snapshot` |
 
 Invoca skill → passa tutto contesto utile già in conversazione (codice aperto, domanda originale, file citati) — no chiedere all'utente di ripetere.
 <!-- /davraf-guidelines -->

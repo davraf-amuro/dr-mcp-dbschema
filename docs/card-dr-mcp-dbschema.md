@@ -7,7 +7,7 @@
 - **Repository:** https://github.com/davraf-amuro/dr-mcp-dbschema
 - **Tipo Applicazione:** MCP Server — eseguibile console .NET 10 self-contained, trasporto stdio
 - **Pattern Architetturale:** Tool distribution — binario distribuito nei progetti ospiti tramite `setup.ps1`; si integra con qualsiasi client MCP (Claude Code, VS Code Copilot, Cursor)
-- **Versione Corrente:** 0.4.1
+- **Versione Corrente:** 0.5.0
 - **Owner/Team:** davraf
 - **Referente:** davide 'davraf' raffagli
 - **Contatto Supporto:** Da verificare
@@ -66,6 +66,13 @@ Il tool non ha un database proprio. Legge le connection string dal progetto ospi
 | `get_view_definition` | `viewName` | Restituisce il codice SQL (`CREATE VIEW`) |
 | `get_view_columns` | `viewName` | Colonne con tipo, nullable, posizione |
 
+### Lettura dati e generazione comandi
+
+| Tool | Parametri | Descrizione |
+|------|-----------|-------------|
+| `run_select` | `sql`, `maxRows` (default 1000) | Esegue query SELECT di sola lettura; valida whitelist + blacklist keyword + blocco multi-statement. Richiede `Ddl.AllowSelect: true`. |
+| `generate_command` | `sql` | Restituisce comandi non-SELECT (INSERT/UPDATE/DELETE/DDL/EXEC…) commentati (`-- ` per riga), senza aprire alcuna connessione. Non esegue mai nulla. |
+
 ### Operazioni DDL (disabilitate per default)
 
 | Tool | Parametri | Descrizione |
@@ -87,4 +94,4 @@ Il tool non ha un database proprio. Legge le connection string dal progetto ospi
 
 ---
 
-*Revisione v1.1 — 2026-06-17 00:00 — claude-sonnet-4-6*
+*Revisione v1.2 — 2026-06-28 00:00 — claude-sonnet-4-6*

@@ -2,7 +2,7 @@
 
 ## Il progetto in tre righe
 
-`dr-mcp-dbschema` è un MCP Server .NET 10 che espone tool per ispezionare lo schema di un database SQL Server e per eseguire operazioni DDL (CREATE / ALTER / DROP) con conferma esplicita a due fasi. Viene installato come binario self-contained nel progetto ospite tramite `setup.ps1` e comunicato con il client MCP (Claude Code, VS Code Copilot, Cursor) via trasporto stdio. Non ha UI, non ha API HTTP.
+`dr-mcp-dbschema` è un MCP Server .NET 10 che espone tool per ispezionare lo schema di un database SQL Server, eseguire query `SELECT` di sola lettura, generare comandi di scrittura commentati (mai eseguiti) ed eseguire operazioni DDL (CREATE / ALTER / DROP) con conferma esplicita a due fasi. Viene installato come binario self-contained nel progetto ospite tramite `setup.ps1` e comunicato con il client MCP (Claude Code, VS Code Copilot, Cursor) via trasporto stdio. Non ha UI, non ha API HTTP.
 
 ---
 
@@ -75,7 +75,7 @@ dr-mcp-dbschema/
 ├── Program.cs                  # Entry point: scansione appsettings, setup DI, avvio MCP server
 ├── Models/
 │   ├── ConnectionState.cs      # Stato sessione: CS disponibili, CS attiva, searchRoot
-│   ├── DdlSettings.cs          # Flag AllowCreate/Alter/Drop letti da appsettings
+│   ├── DdlSettings.cs          # Flag AllowSelect/AllowCreate/AllowAlter/AllowDrop letti da appsettings
 │   ├── DdlKind.cs              # Enum Create/Alter/Drop
 │   └── PendingDdl.cs           # Dati operazione DDL in attesa di conferma (token, SQL, scadenza)
 ├── Tools/
@@ -83,10 +83,10 @@ dr-mcp-dbschema/
 ├── Services/
 │   └── DdlTokenStore.cs        # Store token monouso (ConcurrentDictionary, TTL 60s)
 ├── Helpers/
-│   └── DbSchemaHelpers.cs      # ExtractObjectName, AnalyzeAlterRisk, MaskConnectionString
+│   └── DbSchemaHelpers.cs      # ExtractObjectName, AnalyzeAlterRisk, MaskConnectionString, IsReadOnlySelect, CommentOutSql
 └── tests/
     ├── dr-mcp-dbschema.Tests/
-    │   ├── DbSchemaHelpersTests.cs     # Unit test helpers (ExtractObjectName, AnalyzeAlterRisk, MaskConnectionString)
+    │   ├── DbSchemaHelpersTests.cs     # Unit test helpers (ExtractObjectName, AnalyzeAlterRisk, MaskConnectionString, IsReadOnlySelect, CommentOutSql)
     │   ├── DdlTokenStoreTests.cs       # Unit test token store
     │   └── ListConnectionsTests.cs     # Unit test output griglia numerata ListConnections
     └── DrMcpDbSchema.IntegrationTests/
@@ -110,6 +110,8 @@ dr-mcp-dbschema/
 | Connection string attiva **mai loggata** (anche a livello Debug) | `UseCustomConnection` e qualunque nuovo tool che gestisce CS |
 | Token DDL monouso, TTL 60s, via `DdlTokenStore` | Tutti i flow Preview/Execute |
 | `MaskConnectionString` nell'output utente, **mai il valore grezzo** | `Diagnostics`, `GetActiveConnection`, `UseCustomConnection` |
+| `RunSelect` accetta solo SELECT/CTE: validazione via `IsReadOnlySelect` obbligatoria prima dell'esecuzione | `RunSelect` e qualsiasi futuro tool di lettura |
+| `GenerateCommand` **non apre mai connessioni**: restituisce solo testo commentato, l'impossibilità di esecuzione è strutturale | `GenerateCommand` |
 
 ---
 
@@ -164,4 +166,4 @@ Riferimento completo: `.github/instructions/sensitive-data.instructions.md`
 
 ---
 
-*Revisione v1.1 — 2026-06-17 00:00 — claude-sonnet-4-6*
+*Revisione v1.2 — 2026-06-28 00:00 — claude-sonnet-4-6*

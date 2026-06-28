@@ -5,6 +5,11 @@
 /// </summary>
 public class DdlSettings
 {
+    /// <summary>
+    /// Abilita il tool read-only <c>RunSelect</c> (esecuzione di query SELECT). Default: false.
+    /// Pur essendo di sola lettura, espone i dati: abilitare solo dove necessario.
+    /// </summary>
+    public bool AllowSelect { get; set; } = false;
     /// <summary>Abilita <c>PreviewCreate</c> / <c>ExecuteCreate</c>. Default: false.</summary>
     public bool AllowCreate { get; set; } = false;
     /// <summary>Abilita <c>PreviewAlter</c> / <c>ExecuteAlter</c>. Default: false.</summary>

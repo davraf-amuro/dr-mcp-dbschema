@@ -2,7 +2,7 @@
 
 Server MCP per l'ispezione e la modifica dello schema di un database SQL Server. Compatibile con qualsiasi client che implementa il protocollo MCP: Claude Code, Claude Desktop, VS Code con GitHub Copilot, Cursor e altri.
 
-Permette all'assistente IA di leggere la struttura di tabelle e viste ed eseguire operazioni DDL (CREATE TABLE, ALTER TABLE, DROP TABLE) con un flusso di conferma esplicita a due fasi.
+Permette all'assistente IA di leggere la struttura di tabelle e viste, eseguire query `SELECT` di sola lettura, generare comandi di scrittura senza eseguirli (restituiti commentati) ed eseguire operazioni DDL (CREATE TABLE, ALTER TABLE, DROP TABLE) con un flusso di conferma esplicita a due fasi.
 
 ## Documentazione
 
@@ -38,6 +38,16 @@ Permette all'assistente IA di leggere la struttura di tabelle e viste ed eseguir
 | `list_views` | — | Elenca tutte le tabelle e le viste del database |
 | `get_view_definition` | `viewName` | Restituisce il codice SQL (`CREATE VIEW`) di una vista |
 | `get_view_columns` | `viewName` | Restituisce le colonne di una tabella o vista (nome, tipo, nullable) |
+
+### Lettura dati e generazione comandi
+
+| Tool | Parametri | Descrizione |
+|------|-----------|-------------|
+| `run_select` | `sql`, `maxRows` (default 1000) | Esegue una query `SELECT` di sola lettura e restituisce le righe. Accetta solo `SELECT`/CTE; rifiuta scritture, DDL ed esecuzioni. Richiede `Ddl.AllowSelect: true`. |
+| `generate_command` | `sql` | Restituisce un comando **diverso da SELECT** (INSERT/UPDATE/DELETE/DDL/EXEC…) **commentato** (prefisso `-- ` per riga), **senza eseguirlo** e senza aprire alcuna connessione. |
+
+> `run_select` è di sola lettura: la query viene validata (whitelist del primo token `SELECT`/`WITH` + blacklist di parole chiave + blocco di statement multipli) prima dell'esecuzione.
+> `generate_command` non esegue mai nulla: produce solo testo commentato, così che il comando non sia immediatamente eseguibile dal chiamante.
 
 ### Operazioni DDL (richiedono abilitazione esplicita)
 
@@ -175,6 +185,7 @@ Aggiungi la sezione `Ddl` all'`appsettings.json` del progetto che usa il tool:
     "MioDb": "Server=...;Database=...;..."
   },
   "Ddl": {
+    "AllowSelect": false,
     "AllowCreate": false,
     "AllowAlter": false,
     "AllowDrop": false
@@ -184,6 +195,7 @@ Aggiungi la sezione `Ddl` all'`appsettings.json` del progetto che usa il tool:
 
 | Flag | Default | Quando abilitare |
 |------|---------|-----------------|
+| `AllowSelect` | `false` | Ambienti dove è necessario leggere i dati con `run_select` (sola lettura, ma espone i dati) |
 | `AllowCreate` | `false` | Ambienti di sviluppo/staging dove è necessario creare tabelle |
 | `AllowAlter` | `false` | Ambienti dove sono necessarie migrazioni strutturali |
 | `AllowDrop` | `false` | Ambienti di test o sviluppo dove è necessario eliminare tabelle |
@@ -289,6 +301,29 @@ use_custom_connection -- connectionString: "Server=...;Database=...;..."  -- CS 
 list_views
 get_view_definition -- viewName: "vw_Log106"
 get_view_columns -- viewName: "dbo.Utenti"
+```
+
+### SELECT (sola lettura)
+
+```
+run_select -- sql: "SELECT TOP 10 Id, Nome FROM dbo.Utenti ORDER BY Id"
+run_select -- sql: "SELECT * FROM dbo.Utenti", maxRows: 50
+```
+
+### Generare un comando senza eseguirlo
+
+```
+generate_command -- sql: "UPDATE dbo.Utenti SET Attivo = 0 WHERE Id = 5"
+```
+
+Output (commentato, non eseguibile così com'è):
+```
+STATUS: NOT_EXECUTED
+CODE: COMMAND_GENERATED
+note: comando NON eseguito. Restituito commentato per impedire l'esecuzione immediata.
+note: rimuovi i prefissi '-- ' per eseguirlo manualmente in un contesto controllato.
+---
+-- UPDATE dbo.Utenti SET Attivo = 0 WHERE Id = 5
 ```
 
 ### CREATE TABLE
@@ -546,7 +581,7 @@ dotnet test tests/DrMcpDbSchema.IntegrationTests/ --filter "Category!=LocalDB"
 
 ---
 
-*Last update: 2026-06-17 — dr-mcp-dbschema v0.4.1*
+*Last update: 2026-06-28 — dr-mcp-dbschema v0.5.0*
 
 ---
 

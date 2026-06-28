@@ -111,6 +111,74 @@ public class DbSchemaHelpersTests
     }
 
     // -------------------------------------------------------------------------
+    // IsReadOnlySelect
+    // -------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData("SELECT * FROM Orders")]
+    [InlineData("select id, name from dbo.Customers where id = 1")]
+    [InlineData("SELECT TOP 10 * FROM Orders ORDER BY Id")]
+    [InlineData("WITH cte AS (SELECT Id FROM Orders) SELECT * FROM cte")]
+    [InlineData("SELECT * FROM Orders;")]
+    [InlineData("  SELECT 1  ")]
+    public void IsReadOnlySelect_ValidSelect_ReturnsTrue(string sql)
+    {
+        var result = DbSchemaHelpers.IsReadOnlySelect(sql, out var reason);
+        Assert.True(result);
+        Assert.Equal(string.Empty, reason);
+    }
+
+    [Theory]
+    [InlineData("INSERT INTO Orders VALUES (1)")]
+    [InlineData("UPDATE Orders SET Name = 'x' WHERE Id = 1")]
+    [InlineData("DELETE FROM Orders")]
+    [InlineData("DROP TABLE Orders")]
+    [InlineData("CREATE TABLE T (Id INT)")]
+    [InlineData("ALTER TABLE Orders ADD Col INT")]
+    [InlineData("TRUNCATE TABLE Orders")]
+    [InlineData("MERGE INTO Orders USING src ON src.Id = Orders.Id")]
+    [InlineData("EXEC sp_who")]
+    [InlineData("SELECT * INTO Backup FROM Orders")]
+    [InlineData("SELECT * FROM Orders; DROP TABLE Orders")]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void IsReadOnlySelect_NonReadOnlyOrInvalid_ReturnsFalse(string sql)
+    {
+        var result = DbSchemaHelpers.IsReadOnlySelect(sql, out var reason);
+        Assert.False(result);
+        Assert.NotEqual(string.Empty, reason);
+    }
+
+    [Fact]
+    public void IsReadOnlySelect_TrailingSemicolonOnly_IsAllowed()
+    {
+        var result = DbSchemaHelpers.IsReadOnlySelect("SELECT 1 ;  ", out _);
+        Assert.True(result);
+    }
+
+    // -------------------------------------------------------------------------
+    // CommentOutSql
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void CommentOutSql_SingleLine_PrefixesWithDashes()
+    {
+        var result = DbSchemaHelpers.CommentOutSql("DELETE FROM Orders");
+        Assert.Equal("-- DELETE FROM Orders", result);
+    }
+
+    [Fact]
+    public void CommentOutSql_MultiLine_PrefixesEachLine()
+    {
+        var sql = "UPDATE Orders\r\nSET Name = 'x'\nWHERE Id = 1";
+        var result = DbSchemaHelpers.CommentOutSql(sql);
+
+        var lines = result.Split('\n');
+        Assert.Equal(3, lines.Length);
+        Assert.All(lines, line => Assert.StartsWith("-- ", line));
+    }
+
+    // -------------------------------------------------------------------------
     // MaskConnectionString
     // -------------------------------------------------------------------------
 
